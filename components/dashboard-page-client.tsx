@@ -19,14 +19,21 @@ interface DashboardPageClientProps {
 }
 
 export function DashboardPageClient({ user, stats, phoneNumbers, recentCalls, weekCalls }: DashboardPageClientProps) {
-  const { shouldShowPageTutorial, markPageVisited } = useTutorialContext()
+  const { shouldShowPageTutorial, markPageVisited, shouldShowMainTutorial } = useTutorialContext()
   const [showTutorial, setShowTutorial] = useState(false)
 
   useEffect(() => {
+    // Show main tutorial first if user hasn't seen it
+    if (shouldShowMainTutorial()) {
+      // Main tutorial will be shown by TutorialProvider
+      return
+    }
+    
+    // Then show page-specific tutorial
     if (shouldShowPageTutorial("dashboard")) {
       setTimeout(() => setShowTutorial(true), 500)
     }
-  }, [shouldShowPageTutorial])
+  }, [shouldShowPageTutorial, shouldShowMainTutorial])
 
   const handleCloseTutorial = () => {
     setShowTutorial(false)

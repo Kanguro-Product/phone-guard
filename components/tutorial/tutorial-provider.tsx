@@ -20,6 +20,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
   const tutorial = useTutorial()
 
   useEffect(() => {
+    // Only mark app as visited if we're on an authenticated page
     if (tutorial.isLoaded && !tutorial.shouldShowMainTutorial()) {
       const timer = setTimeout(() => {
         tutorial.markAppVisited()
@@ -31,6 +32,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
   return (
     <TutorialContext.Provider value={tutorial}>
       {children}
+      {/* Only show tutorial overlay on authenticated pages */}
       <TutorialOverlay
         isOpen={tutorial.shouldShowMainTutorial()}
         onClose={tutorial.completeMainTutorial}

@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
+import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
 
@@ -91,6 +92,16 @@ export default function Page() {
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
       <div className="w-full max-w-sm">
         <div className="flex flex-col gap-6">
+          {/* Logo */}
+          <div className="flex justify-center mb-4">
+            <Image 
+              src="https://kanguro.com/wp-content/uploads/2023/10/Kanguro-logo_.webp" 
+              alt="Kanguro Logo" 
+              width={120} 
+              height={40} 
+              className="h-10 w-auto"
+            />
+          </div>
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl">Login</CardTitle>
@@ -98,9 +109,9 @@ export default function Page() {
               <div className="text-xs text-muted-foreground mt-2 p-2 bg-muted rounded">
                 <strong>Test credentials:</strong>
                 <br />
-                Email: admin@test.com
+                Email: oriol+1@kanguro.com
                 <br />
-                Password: admin123
+                Password: A123456
               </div>
             </CardHeader>
             <CardContent>

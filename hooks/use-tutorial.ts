@@ -72,6 +72,7 @@ export function useTutorial() {
   }
 
   const shouldShowMainTutorial = () => {
+    // Only show main tutorial if user is authenticated and hasn't seen it
     return isLoaded && !tutorialState.hasVisitedApp && !tutorialState.neverShowAgain
   }
 
