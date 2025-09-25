@@ -14,6 +14,10 @@ interface CallsChartProps {
 }
 
 export function CallsChart({ calls }: CallsChartProps) {
+  // Debug: Log the calls data to see what we're working with
+  console.log("CallsChart - Raw calls data:", calls)
+  console.log("CallsChart - Unique statuses:", [...new Set(calls.map(call => call.status))])
+  
   // Group calls by day for the last 7 days
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const date = new Date()
@@ -29,12 +33,28 @@ export function CallsChart({ calls }: CallsChartProps) {
         month: "short",
         day: "numeric",
       }),
-      successful: dayCalls.filter((call) => call.status === "success").length,
-      failed: dayCalls.filter((call) => call.status === "failed").length,
-      spam: dayCalls.filter((call) => call.status === "spam_detected").length,
+      successful: dayCalls.filter((call) => 
+        call.status === "success" || 
+        call.status === "completed" || 
+        call.status === "answered"
+      ).length,
+      failed: dayCalls.filter((call) => 
+        call.status === "failed" || 
+        call.status === "busy" || 
+        call.status === "no_answer" ||
+        call.status === "error"
+      ).length,
+      spam: dayCalls.filter((call) => 
+        call.status === "spam_detected" || 
+        call.status === "spam" ||
+        call.status === "blocked"
+      ).length,
       total: dayCalls.length,
     }
   })
+
+  // Debug: Log the processed chart data
+  console.log("CallsChart - Processed chart data:", chartData)
 
   return (
     <Card>
