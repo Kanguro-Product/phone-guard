@@ -863,7 +863,7 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0" disabled={loading === number.id}>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -874,41 +874,67 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => handleStatusChange(number.id, "active")}
-                              disabled={number.status === "active"}
+                              disabled={number.status === "active" || loading === number.id}
                             >
+                              {loading === number.id ? (
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              ) : null}
                               Set Active
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => handleStatusChange(number.id, "inactive")}
-                              disabled={number.status === "inactive"}
+                              disabled={number.status === "inactive" || loading === number.id}
                             >
+                              {loading === number.id ? (
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              ) : null}
                               Set Inactive
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => handleStatusChange(number.id, "blocked")}
-                              disabled={number.status === "blocked"}
+                              disabled={number.status === "blocked" || loading === number.id}
                             >
+                              {loading === number.id ? (
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              ) : null}
                               Block Number
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => handleDeprecate(number.id)}
-                              disabled={number.status === "deprecated"}
+                              disabled={number.status === "deprecated" || loading === number.id}
                               className="text-orange-600"
                             >
-                              <Archive className="h-4 w-4 mr-2" />
+                              {loading === number.id ? (
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <Archive className="h-4 w-4 mr-2" />
+                              )}
                               Marcar como En Desuso
                             </DropdownMenuItem>
                             {number.status === "deprecated" && (
                               <DropdownMenuItem
                                 onClick={() => handleStatusChange(number.id, "active")}
+                                disabled={loading === number.id}
                                 className="text-green-600"
                               >
-                                <RefreshCw className="h-4 w-4 mr-2" />
+                                {loading === number.id ? (
+                                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="h-4 w-4 mr-2" />
+                                )}
                                 Restaurar a Activo
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuItem onClick={() => handleDelete(number.id)} className="text-red-600">
-                              <Trash2 className="h-4 w-4 mr-2" />
+                            <DropdownMenuItem 
+                              onClick={() => handleDelete(number.id)} 
+                              disabled={loading === number.id}
+                              className="text-red-600"
+                            >
+                              {loading === number.id ? (
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4 mr-2" />
+                              )}
                               Eliminar Permanentemente
                             </DropdownMenuItem>
                           </DropdownMenuContent>
