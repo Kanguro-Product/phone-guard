@@ -12,8 +12,55 @@ export default async function DashboardPage() {
     redirect("/auth/login")
   }
 
-  // Get dashboard metrics
-  const { data: metrics } = await supabase.from("dashboard_metrics").select("*").eq("user_id", user.id).single()
+  // Calculate dashboard metrics from real data
+  const [
+    { data: phoneNumbersData },
+    { data: cadencesData },
+    { data: callsTodayData }
+  ] = await Promise.all([
+    supabase
+      .from("phone_numbers")
+      .select("id, status, reputation_score, average_reputation_score")
+      .eq("user_id", user.id),
+    supabase
+      .from("cadences")
+      .select("id, is_active")
+      .eq("user_id", user.id),
+    supabase
+      .from("calls")
+      .select("id, status")
+      .eq("user_id", user.id)
+      .gte("call_time", new Date().toISOString().split('T')[0]) // Today's calls
+  ])
+
+  // Calculate metrics
+  const totalNumbers = phoneNumbersData?.length || 0
+  const activeNumbers = phoneNumbersData?.filter(p => p.status === 'active').length || 0
+  const spamNumbers = phoneNumbersData?.filter(p => p.status === 'spam').length || 0
+  
+  // Use average_reputation_score if available, otherwise fallback to reputation_score
+  const avgReputation = phoneNumbersData?.length > 0 
+    ? phoneNumbersData.reduce((sum, p) => sum + (p.average_reputation_score || p.reputation_score || 0), 0) / phoneNumbersData.length
+    : 0
+
+  const totalCadences = cadencesData?.length || 0
+  const activeCadences = cadencesData?.filter(c => c.is_active).length || 0
+  
+  const totalCallsToday = callsTodayData?.length || 0
+  const successfulCallsToday = callsTodayData?.filter(c => c.status === 'success').length || 0
+  const spamCallsToday = callsTodayData?.filter(c => c.status === 'spam_detected').length || 0
+
+  const metrics = {
+    total_numbers: totalNumbers,
+    active_numbers: activeNumbers,
+    spam_numbers: spamNumbers,
+    avg_reputation: avgReputation,
+    total_cadences: totalCadences,
+    active_cadences: activeCadences,
+    total_calls_today: totalCallsToday,
+    successful_calls_today: successfulCallsToday,
+    spam_calls_today: spamCallsToday,
+  }
 
   // Get recent calls for activity feed
   const { data: recentCalls } = await supabase
@@ -44,17 +91,7 @@ export default async function DashboardPage() {
     .gte("call_time", sevenDaysAgo.toISOString())
     .order("call_time", { ascending: true })
 
-  const stats = metrics || {
-    total_numbers: 0,
-    active_numbers: 0,
-    spam_numbers: 0,
-    avg_reputation: 0,
-    total_cadences: 0,
-    active_cadences: 0,
-    total_calls_today: 0,
-    successful_calls_today: 0,
-    spam_calls_today: 0,
-  }
+  const stats = metrics
 
   return (
     <DashboardPageClient
