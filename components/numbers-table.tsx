@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { MoreHorizontal, Phone, TrendingUp, TrendingDown, AlertTriangle, Shield, Info, Bot, Sparkles, CheckCircle } from "lucide-react"
+import { MoreHorizontal, Phone, TrendingUp, TrendingDown, AlertTriangle, Shield, Info, Bot, Sparkles, CheckCircle, ArrowUpDown, ArrowUp, ArrowDown, Filter, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { SpamValidationPanel } from "./spam-validation-panel"
 import { BulkValidationDialog } from "./bulk-validation-dialog"
@@ -48,6 +48,16 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
   const [updatingNumberId, setUpdatingNumberId] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
+  
+  // Sorting and filtering states
+  const [sortField, setSortField] = useState<keyof PhoneNumber>('average_reputation_score')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+  const [filters, setFilters] = useState({
+    status: 'all' as string,
+    provider: 'all' as string,
+    scoreRange: 'all' as string,
+    showSpamOnly: false
+  })
   
   // Hook para actualizaciones en tiempo real
   const { isConnected, lastUpdate, refresh, status } = usePhoneNumbersRealtime()
@@ -239,11 +249,106 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
     )
   }
 
-  // Sort numbers by average score (highest to lowest)
-  const sortedNumbers = [...localNumbers].sort((a, b) => {
-    const scoreA = getAverageScore(a)
-    const scoreB = getAverageScore(b)
-    return scoreB - scoreA // Descending order
+  // Sorting functions
+  const handleSort = (field: keyof PhoneNumber) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('desc')
+    }
+  }
+
+  const getSortIcon = (field: keyof PhoneNumber) => {
+    if (sortField !== field) return <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+    return sortDirection === 'asc' ? 
+      <ArrowUp className="h-4 w-4 text-primary" /> : 
+      <ArrowDown className="h-4 w-4 text-primary" />
+  }
+
+  // Filtering functions
+  const applyFilters = (numbers: PhoneNumber[]) => {
+    return numbers.filter(number => {
+      // Status filter
+      if (filters.status !== 'all' && number.status !== filters.status) return false
+      
+      // Provider filter
+      if (filters.provider !== 'all' && number.provider !== filters.provider) return false
+      
+      // Score range filter
+      const averageScore = getAverageScore(number)
+      if (filters.scoreRange !== 'all') {
+        switch (filters.scoreRange) {
+          case 'excellent': if (averageScore < 90) return false; break
+          case 'good': if (averageScore < 80 || averageScore >= 90) return false; break
+          case 'fair': if (averageScore < 60 || averageScore >= 80) return false; break
+          case 'poor': if (averageScore >= 60) return false; break
+        }
+      }
+      
+      // Spam only filter
+      if (filters.showSpamOnly && number.status !== 'spam') return false
+      
+      return true
+    })
+  }
+
+  // Recommendation system
+  const getRecommendation = (number: PhoneNumber) => {
+    const averageScore = getAverageScore(number)
+    const spamReports = number.spam_reports
+    const lastChecked = new Date(number.last_checked || number.updated_at)
+    const daysSinceCheck = (Date.now() - lastChecked.getTime()) / (1000 * 60 * 60 * 24)
+    
+    // High spam reports + low score = burn
+    if (spamReports >= 5 && averageScore < 30) {
+      return { type: 'burn', label: '🔥 Quemar', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' }
+    }
+    
+    // Low score + recent check = rest
+    if (averageScore < 50 && daysSinceCheck < 7) {
+      return { type: 'rest', label: '😴 Reposar 7 días', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' }
+    }
+    
+    // Medium score + old check = retry
+    if (averageScore >= 50 && averageScore < 70 && daysSinceCheck > 14) {
+      return { type: 'retry', label: '🔄 Reintentar', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' }
+    }
+    
+    // High score = use
+    if (averageScore >= 80) {
+      return { type: 'use', label: '✅ Usar', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' }
+    }
+    
+    // Default = monitor
+    return { type: 'monitor', label: '👀 Monitorear', color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200' }
+  }
+
+  // Sort and filter numbers
+  const sortedAndFilteredNumbers = applyFilters([...localNumbers]).sort((a, b) => {
+    let aValue: any, bValue: any
+    
+    if (sortField === 'average_reputation_score') {
+      aValue = getAverageScore(a)
+      bValue = getAverageScore(b)
+    } else if (sortField === 'numverify_score') {
+      aValue = getNumverifyScore(a)
+      bValue = getNumverifyScore(b)
+    } else if (sortField === 'openai_score') {
+      aValue = getOpenAIScore(a)
+      bValue = getOpenAIScore(b)
+    } else {
+      aValue = a[sortField]
+      bValue = b[sortField]
+    }
+    
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      return sortDirection === 'asc' ? 
+        aValue.localeCompare(bValue) : 
+        bValue.localeCompare(aValue)
+    }
+    
+    return sortDirection === 'asc' ? aValue - bValue : bValue - aValue
   })
 
   const handleStatusChange = async (id: string, newStatus: string) => {
@@ -323,7 +428,8 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
     }
   }
 
-  if (sortedNumbers.length === 0) {
+  // Check if there are no numbers at all (not just filtered)
+  if (localNumbers.length === 0) {
     return (
       <TooltipProvider>
       <Card>
@@ -354,16 +460,16 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Numbers Table */}
-        <div className="lg:col-span-2">
+      <div className="w-full">
+        {/* Numbers Table - Full Screen */}
+        <div className="w-full">
           <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-foreground">
-                    Phone Numbers ({localNumbers.length}) 
+                    Phone Numbers ({sortedAndFilteredNumbers.length} de {localNumbers.length}) 
                     <Badge variant="secondary" className="ml-2 text-xs">
-                      Sorted by Reliability
+                      Sorted by {sortField === 'average_reputation_score' ? 'Reliability' : sortField}
                     </Badge>
                   </CardTitle>
                   <RealtimeStatus 
@@ -374,16 +480,137 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                 </div>
               </CardHeader>
             <CardContent>
-              <Table>
+              {/* Filters */}
+              <div className="flex flex-wrap gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Filtros:</span>
+                </div>
+                
+                {/* Status Filter */}
+                <select 
+                  value={filters.status} 
+                  onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                  className="px-3 py-1 text-sm border rounded-md bg-background"
+                >
+                  <option value="all">Todos los estados</option>
+                  <option value="active">Activo</option>
+                  <option value="inactive">Inactivo</option>
+                  <option value="blocked">Bloqueado</option>
+                  <option value="spam">Spam</option>
+                </select>
+                
+                {/* Provider Filter */}
+                <select 
+                  value={filters.provider} 
+                  onChange={(e) => setFilters(prev => ({ ...prev, provider: e.target.value }))}
+                  className="px-3 py-1 text-sm border rounded-md bg-background"
+                >
+                  <option value="all">Todos los proveedores</option>
+                  <option value="Twilio">Twilio</option>
+                  <option value="Vonage">Vonage</option>
+                  <option value="Other">Otros</option>
+                </select>
+                
+                {/* Score Range Filter */}
+                <select 
+                  value={filters.scoreRange} 
+                  onChange={(e) => setFilters(prev => ({ ...prev, scoreRange: e.target.value }))}
+                  className="px-3 py-1 text-sm border rounded-md bg-background"
+                >
+                  <option value="all">Todos los scores</option>
+                  <option value="excellent">Excelente (90-100)</option>
+                  <option value="good">Bueno (80-89)</option>
+                  <option value="fair">Regular (60-79)</option>
+                  <option value="poor">Pobre (0-59)</option>
+                </select>
+                
+                {/* Spam Only Filter */}
+                <label className="flex items-center space-x-2 text-sm">
+                  <input 
+                    type="checkbox" 
+                    checked={filters.showSpamOnly}
+                    onChange={(e) => setFilters(prev => ({ ...prev, showSpamOnly: e.target.checked }))}
+                    className="rounded"
+                  />
+                  <span>Solo Spam</span>
+                </label>
+                
+                {/* Clear Filters */}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setFilters({ status: 'all', provider: 'all', scoreRange: 'all', showSpamOnly: false })}
+                  className="text-xs"
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Limpiar
+                </Button>
+              </div>
+              
+              {/* Selection hint when no number is selected */}
+              {!selectedNumber && (
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="flex items-center space-x-2 text-blue-700 dark:text-blue-300">
+                    <Shield className="h-4 w-4" />
+                    <span className="text-sm font-medium">
+                      Haz click en cualquier número para validar SPAM
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {/* Show message when no numbers match filters */}
+              {sortedAndFilteredNumbers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Phone className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">No hay números que coincidan con los filtros</h3>
+                  <p className="text-muted-foreground text-center mb-4">
+                    Ajusta los filtros para ver más números o agrega nuevos números
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setFilters({ status: 'all', provider: 'all', scoreRange: 'all', showSpamOnly: false })}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Limpiar Filtros
+                  </Button>
+                </div>
+              ) : (
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-muted-foreground w-20">🏆</TableHead>
-                    <TableHead className="text-muted-foreground">Number</TableHead>
-                    <TableHead className="text-muted-foreground">Provider</TableHead>
-                    <TableHead className="text-muted-foreground">Status</TableHead>
+                    <TableHead 
+                      className="text-muted-foreground cursor-pointer hover:text-primary"
+                      onClick={() => handleSort('number')}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>#</span>
+                        {getSortIcon('number')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-muted-foreground cursor-pointer hover:text-primary"
+                      onClick={() => handleSort('provider')}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Prov</span>
+                        {getSortIcon('provider')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-muted-foreground cursor-pointer hover:text-primary"
+                      onClick={() => handleSort('status')}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Est</span>
+                        {getSortIcon('status')}
+                      </div>
+                    </TableHead>
                       <TableHead className="text-muted-foreground">
                         <div className="flex items-center space-x-1">
-                          <span>Numverify Score</span>
+                          <span>Numv</span>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Info className="h-3 w-3 text-muted-foreground cursor-help" />
@@ -402,7 +629,7 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                       </TableHead>
                       <TableHead className="text-muted-foreground">
                         <div className="flex items-center space-x-1">
-                          <span>OpenAI Score</span>
+                          <span>AI</span>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Info className="h-3 w-3 text-muted-foreground cursor-help" />
@@ -419,9 +646,13 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                           </Tooltip>
                         </div>
                       </TableHead>
-                      <TableHead className="text-muted-foreground">
+                      <TableHead 
+                        className="text-muted-foreground cursor-pointer hover:text-primary"
+                        onClick={() => handleSort('average_reputation_score')}
+                      >
                         <div className="flex items-center space-x-1">
-                          <span>Average Score</span>
+                          <span>Avg</span>
+                          {getSortIcon('average_reputation_score')}
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Info className="h-3 w-3 text-muted-foreground cursor-help" />
@@ -438,11 +669,11 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                           </Tooltip>
                         </div>
                       </TableHead>
-                    <TableHead className="text-muted-foreground">Carrier / Line Type</TableHead>
-                    <TableHead className="text-muted-foreground">Country / Location</TableHead>
+                    <TableHead className="text-muted-foreground">Carrier</TableHead>
+                    <TableHead className="text-muted-foreground">Location</TableHead>
                       <TableHead className="text-muted-foreground">
                         <div className="flex items-center space-x-1">
-                          <span>SPAM Reports</span>
+                          <span>Reports</span>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Info className="h-3 w-3 text-muted-foreground cursor-help" />
@@ -461,11 +692,12 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                           </Tooltip>
                         </div>
                       </TableHead>
-                    <TableHead className="text-muted-foreground">Actions</TableHead>
+                    <TableHead className="text-muted-foreground">Rec</TableHead>
+                    <TableHead className="text-muted-foreground">Act</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedNumbers.map((number, index) => (
+                  {sortedAndFilteredNumbers.map((number, index) => (
                     <TableRow
                       key={number.id}
                       className={
@@ -575,6 +807,11 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                         )}
                       </TableCell>
                       <TableCell>
+                        <Badge className={getRecommendation(number).color}>
+                          {getRecommendation(number).label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-8 w-8 p-0" disabled={loading === number.id}>
@@ -614,30 +851,98 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                   ))}
                 </TableBody>
               </Table>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* SPAM Validation Panel */}
-        <div className="lg:col-span-1">
-          {selectedNumber ? (
-            <SpamValidationPanel
-              phoneNumberId={selectedNumber.id}
-              currentReputation={getAverageScore(selectedNumber)}
-              currentStatus={selectedNumber.status}
-              onValidationComplete={handleValidationComplete}
-            />
-          ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Shield className="h-8 w-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground text-center">
-                  Select a phone number to run SPAM validation
-                </p>
+        {/* Floating SPAM Validation Panel */}
+        {selectedNumber && (
+          <div className="fixed bottom-6 right-6 z-50 w-96 max-h-[80vh] overflow-y-auto">
+            <Card className="shadow-2xl border-2">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-foreground text-lg">SPAM Validation</CardTitle>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setSelectedNumber(null)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {/* Phone Number Context */}
+                <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+                  <div className="space-y-3">
+                    {/* Phone Number */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Número Seleccionado:</p>
+                        <p className="text-lg font-mono text-primary">{selectedNumber.number}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">Proveedor:</p>
+                        <p className="text-sm font-medium">{selectedNumber.provider}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Current Scores */}
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="p-2 bg-background rounded border">
+                        <p className="text-xs text-muted-foreground">Numverify</p>
+                        <p className="text-sm font-bold text-green-600">{getNumverifyScore(selectedNumber)}</p>
+                      </div>
+                      <div className="p-2 bg-background rounded border">
+                        <p className="text-xs text-muted-foreground">OpenAI</p>
+                        <p className="text-sm font-bold text-purple-600">{getOpenAIScore(selectedNumber)}</p>
+                      </div>
+                      <div className="p-2 bg-background rounded border">
+                        <p className="text-xs text-muted-foreground">Average</p>
+                        <p className="text-sm font-bold text-blue-600">{getAverageScore(selectedNumber)}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Status and Reports */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Badge variant={
+                          selectedNumber.status === "active" ? "default" :
+                          selectedNumber.status === "inactive" ? "secondary" :
+                          selectedNumber.status === "blocked" ? "destructive" :
+                          "destructive"
+                        }>
+                          {selectedNumber.status.charAt(0).toUpperCase() + selectedNumber.status.slice(1)}
+                        </Badge>
+                        {selectedNumber.spam_reports > 0 && (
+                          <div className="flex items-center space-x-1 text-red-500">
+                            <AlertTriangle className="h-3 w-3" />
+                            <span className="text-xs">{selectedNumber.spam_reports} reportes</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Recomendación:</p>
+                        <Badge className={getRecommendation(selectedNumber).color}>
+                          {getRecommendation(selectedNumber).label}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <SpamValidationPanel
+                  phoneNumberId={selectedNumber.id}
+                  currentReputation={getAverageScore(selectedNumber)}
+                  currentStatus={selectedNumber.status}
+                  onValidationComplete={handleValidationComplete}
+                />
               </CardContent>
             </Card>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
     </TooltipProvider>

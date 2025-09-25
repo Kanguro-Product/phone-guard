@@ -1,12 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Shield, ShieldCheck, ShieldAlert, RefreshCw, AlertTriangle, CheckCircle, Clock, X, Bot, Brain, Sparkles } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 
 interface SpamValidationPanelProps {
   phoneNumberId: string
@@ -26,9 +28,57 @@ export function SpamValidationPanel({
   const [error, setError] = useState<string | null>(null)
   const [showResults, setShowResults] = useState(false)
   
+  // API selection state
+  const [selectedAPIs, setSelectedAPIs] = useState({
+    numverify: true,
+    openai: true,
+    hiya: false // Disabled until coming soon
+  })
+  
+  // API quota/token state
+  const [apiQuotas, setApiQuotas] = useState({
+    numverify: { remaining: null, total: null, loading: false },
+    openai: { remaining: null, total: null, loading: false },
+    hiya: { remaining: null, total: null, loading: false }
+  })
+  
   // Use updated average score from validation result if available, otherwise use current reputation
   const displayReputation = validationResult?.updatedAverageScore ?? currentReputation
   const displayStatus = validationResult?.updatedStatus ?? currentStatus
+
+  // Function to get API quota information
+  const fetchApiQuotas = async () => {
+    // Set loading state
+    setApiQuotas(prev => ({
+      numverify: { ...prev.numverify, loading: true },
+      openai: { ...prev.openai, loading: true },
+      hiya: { ...prev.hiya, loading: true }
+    }))
+
+    try {
+      const response = await fetch("/api/integrations/quota", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (response.ok) {
+        const quotas = await response.json()
+        setApiQuotas(prev => ({
+          ...prev,
+          ...quotas
+        }))
+      }
+    } catch (error) {
+      console.error("Error fetching API quotas:", error)
+    }
+  }
+
+  // Fetch quotas on component mount
+  useEffect(() => {
+    fetchApiQuotas()
+  }, [])
 
   const handleValidate = async () => {
     setIsValidating(true)
@@ -43,7 +93,10 @@ export function SpamValidationPanel({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ phoneNumberId }),
+        body: JSON.stringify({ 
+          phoneNumberId,
+          selectedAPIs 
+        }),
       })
 
       const data = await response.json()
@@ -62,6 +115,9 @@ export function SpamValidationPanel({
           onValidationComplete()
         }, 500)
       }
+
+      // Refresh quotas after successful validation
+      fetchApiQuotas()
     } catch (err) {
       console.error("[v0] SPAM validation error:", err)
       setError(err instanceof Error ? err.message : "Unknown error occurred")
@@ -169,8 +225,105 @@ export function SpamValidationPanel({
           </div>
         </div>
 
+        {/* API Selection */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium text-foreground">Seleccionar APIs para validación:</div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchApiQuotas}
+              className="text-xs"
+            >
+              🔄 Actualizar Quotas
+            </Button>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="numverify" 
+                checked={selectedAPIs.numverify}
+                onCheckedChange={(checked) => 
+                  setSelectedAPIs(prev => ({ ...prev, numverify: checked as boolean }))
+                }
+              />
+              <Label htmlFor="numverify" className="flex items-center space-x-2 cursor-pointer">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <span>Numverify (Validación de Carrier)</span>
+                {apiQuotas.numverify.loading ? (
+                  <Badge variant="outline" className="text-xs">
+                    ⏳ Cargando...
+                  </Badge>
+                ) : apiQuotas.numverify.remaining !== null && (
+                  <Badge variant="outline" className="text-xs">
+                    {apiQuotas.numverify.remaining === "N/A" ? "Límite mensual" : `${apiQuotas.numverify.remaining} restantes`}
+                  </Badge>
+                )}
+              </Label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="openai" 
+                checked={selectedAPIs.openai}
+                onCheckedChange={(checked) => 
+                  setSelectedAPIs(prev => ({ ...prev, openai: checked as boolean }))
+                }
+              />
+              <Label htmlFor="openai" className="flex items-center space-x-2 cursor-pointer">
+                <Bot className="h-4 w-4 text-purple-500" />
+                <span>OpenAI ChatGPT (Análisis IA)</span>
+                {apiQuotas.openai.loading ? (
+                  <Badge variant="outline" className="text-xs">
+                    ⏳ Cargando...
+                  </Badge>
+                ) : apiQuotas.openai.remaining !== null && (
+                  <Badge variant="outline" className="text-xs">
+                    {apiQuotas.openai.remaining}
+                  </Badge>
+                )}
+              </Label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="hiya" 
+                checked={false}
+                disabled={true}
+                onCheckedChange={() => {}} // No-op since it's disabled
+              />
+              <Label htmlFor="hiya" className="flex items-center space-x-2 cursor-not-allowed opacity-60">
+                <Shield className="h-4 w-4 text-blue-500" />
+                <span>Hiya (Coming Soon)</span>
+              </Label>
+            </div>
+          </div>
+          
+          {/* Validation info */}
+        <div className="text-xs text-muted-foreground">
+          {Object.values(selectedAPIs).filter(Boolean).length === 0 
+            ? "⚠️ Selecciona al menos una API para continuar"
+            : `${Object.values(selectedAPIs).filter(Boolean).length} API(s) seleccionada(s)`
+          }
+        </div>
+
+        {/* API Usage Info */}
+        <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+          <div className="text-xs font-medium text-foreground mb-2">📊 Información de Uso:</div>
+          <div className="space-y-1 text-xs text-muted-foreground">
+            <div>• <strong>Numverify:</strong> Límite mensual según plan</div>
+            <div>• <strong>OpenAI:</strong> Basado en créditos ($)</div>
+            <div>• <strong>Hiya:</strong> Próximamente disponible</div>
+          </div>
+        </div>
+        </div>
+
         {/* Validation Button */}
-        <Button onClick={handleValidate} disabled={isValidating} className="w-full">
+        <Button 
+          onClick={handleValidate} 
+          disabled={isValidating || Object.values(selectedAPIs).filter(Boolean).length === 0} 
+          className="w-full"
+        >
           {isValidating ? (
             <>
               <RefreshCw className="h-4 w-4 mr-2 animate-spin" />

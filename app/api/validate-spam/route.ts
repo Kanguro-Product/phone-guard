@@ -5,11 +5,14 @@ import { getIntegrationCredentials } from "@/lib/utils"
 
 export async function POST(request: NextRequest) {
   try {
-    const { phoneNumberId } = await request.json()
+    const { phoneNumberId, selectedAPIs } = await request.json()
 
     if (!phoneNumberId) {
       return NextResponse.json({ error: "Phone number ID is required" }, { status: 400 })
     }
+
+    // Default to all APIs if none specified
+    const apisToUse = selectedAPIs || { numverify: true, openai: true, hiya: true }
 
     const supabase = await createClient()
 
@@ -43,11 +46,26 @@ export async function POST(request: NextRequest) {
     // Load user default country for national numbers (optional future use)
     const { data: userProfile } = await supabase.from("users").select("default_country_code").eq("id", user.id).single()
     const providers = [] as any[]
-    if (hiya?.api_key) providers.push(new HiyaApiProvider(hiya.api_key, hiya.api_secret))
-    if (numverify?.api_key) providers.push(new NumverifyApiProvider(numverify.api_key))
-    if (chatgpt?.api_key) providers.push(new ChatGPTProvider(chatgpt.api_key))
-    const selected = providers.length > 0 ? providers : undefined
-    const validator = new SpamValidationService(selected)
+    
+    // Only add providers that are selected and have credentials
+    if (apisToUse.hiya && hiya?.api_key) {
+      providers.push(new HiyaApiProvider(hiya.api_key, hiya.api_secret))
+    }
+    if (apisToUse.numverify && numverify?.api_key) {
+      providers.push(new NumverifyApiProvider(numverify.api_key))
+    }
+    if (apisToUse.openai && chatgpt?.api_key) {
+      providers.push(new ChatGPTProvider(chatgpt.api_key))
+    }
+    
+    // Ensure at least one provider is available
+    if (providers.length === 0) {
+      return NextResponse.json({ 
+        error: "No APIs selected or no valid credentials found. Please check your integrations." 
+      }, { status: 400 })
+    }
+    
+    const validator = new SpamValidationService(providers)
 
     // Perform SPAM validation
     const validationResult = await validator.validateNumber(phoneNumber.number)
