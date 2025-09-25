@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { HiyaApiProvider, NumverifyApiProvider, SpamValidationService } from "@/lib/spam-validation"
+import { HiyaApiProvider, NumverifyApiProvider, ChatGPTProvider, SpamValidationService } from "@/lib/spam-validation"
 import { getIntegrationCredentials } from "@/lib/utils"
 
 export async function POST(request: NextRequest) {
@@ -36,14 +36,16 @@ export async function POST(request: NextRequest) {
 
     console.log(`[v0] Validating phone number: ${phoneNumber.number}`)
 
-    // Build providers from integrations (Hiya/Numverify), fallback to mock
+    // Build providers from integrations (Hiya/Numverify/ChatGPT), fallback to mock
     const hiya = await getIntegrationCredentials(supabase, user.id, "hiya")
     const numverify = await getIntegrationCredentials(supabase, user.id, "numverify")
+    const chatgpt = await getIntegrationCredentials(supabase, user.id, "openai")
     // Load user default country for national numbers (optional future use)
     const { data: userProfile } = await supabase.from("users").select("default_country_code").eq("id", user.id).single()
     const providers = [] as any[]
     if (hiya?.api_key) providers.push(new HiyaApiProvider(hiya.api_key, hiya.api_secret))
     if (numverify?.api_key) providers.push(new NumverifyApiProvider(numverify.api_key))
+    if (chatgpt?.api_key) providers.push(new ChatGPTProvider(chatgpt.api_key))
     const selected = providers.length > 0 ? providers : undefined
     const validator = new SpamValidationService(selected)
 
@@ -52,8 +54,16 @@ export async function POST(request: NextRequest) {
 
     // Update phone number reputation based on validation
     const newReputationScore = Math.max(0, Math.min(100, validationResult.overallResult.details.reputation))
-
+    const newSpamReports = phoneNumber.spam_reports + (validationResult.overallResult.isSpam ? 1 : 0)
     const newStatus = validationResult.overallResult.isSpam ? "spam" : phoneNumber.status
+
+    // Extract individual provider scores
+    const numverifyResult = validationResult.providerResults?.find((p: any) => p.provider === "Numverify")
+    const openaiResult = validationResult.providerResults?.find((p: any) => p.provider === "ChatGPT")
+    
+    const numverifyScore = numverifyResult ? Math.max(0, Math.min(100, numverifyResult.details.reputation)) : null
+    const openaiScore = openaiResult ? Math.max(0, Math.min(100, openaiResult.details.reputation)) : null
+    const averageScore = numverifyScore && openaiScore ? Math.round((numverifyScore + openaiScore + newReputationScore) / 3) : null
 
     // Update phone number in database
     const enrichment = validationResult.providerResults?.find?.((p: any) => p.provider === "Numverify")?.details || {}
@@ -62,8 +72,11 @@ export async function POST(request: NextRequest) {
       .from("phone_numbers")
       .update({
         reputation_score: newReputationScore,
+        numverify_score: numverifyScore,
+        openai_score: openaiScore,
+        average_reputation_score: averageScore,
         status: newStatus,
-        spam_reports: validationResult.overallResult.details.reports,
+        spam_reports: newSpamReports,
         last_checked: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         carrier: enrichment.carrier || null,
@@ -81,8 +94,11 @@ export async function POST(request: NextRequest) {
         .from("phone_numbers")
         .update({
           reputation_score: newReputationScore,
+          numverify_score: numverifyScore,
+          openai_score: openaiScore,
+          average_reputation_score: averageScore,
           status: newStatus,
-          spam_reports: validationResult.overallResult.details.reports,
+          spam_reports: newSpamReports,
           last_checked: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -112,6 +128,7 @@ export async function POST(request: NextRequest) {
       success: true,
       validation: validationResult,
       updatedReputation: newReputationScore,
+      updatedAverageScore: averageScore,
       updatedStatus: newStatus,
     })
   } catch (error) {

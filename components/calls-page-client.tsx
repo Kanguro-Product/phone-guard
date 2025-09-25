@@ -6,6 +6,8 @@ import { CallSimulator } from "@/components/call-simulator"
 import { CallLogsTable } from "@/components/call-logs-table"
 import { PageTutorial } from "@/components/tutorial/page-tutorial"
 import { useTutorialContext } from "@/components/tutorial/tutorial-provider"
+import { useCallsRealtime } from "@/hooks/use-realtime-updates"
+import { RealtimeStatus } from "@/components/realtime-status"
 
 interface CallsPageClientProps {
   user: any
@@ -16,6 +18,9 @@ interface CallsPageClientProps {
 export function CallsPageClient({ user, cadences, calls }: CallsPageClientProps) {
   const { shouldShowPageTutorial, markPageVisited } = useTutorialContext()
   const [showTutorial, setShowTutorial] = useState(false)
+  
+  // Hook para actualizaciones en tiempo real
+  const { isConnected, lastUpdate, refresh, status } = useCallsRealtime()
 
   useEffect(() => {
     if (shouldShowPageTutorial("calls")) {
@@ -34,16 +39,25 @@ export function CallsPageClient({ user, cadences, calls }: CallsPageClientProps)
 
       <main className="container mx-auto px-6 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground text-balance">Call Management</h1>
-          <p className="text-muted-foreground mt-2">Test phone number rotation and view call logs</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground text-balance">Call Management</h1>
+              <p className="text-muted-foreground mt-2">Test phone number rotation and view call logs</p>
+            </div>
+            <RealtimeStatus 
+              status={status} 
+              lastUpdate={lastUpdate} 
+              onRefresh={refresh}
+            />
+          </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3 mb-8">
           <div className="lg:col-span-1">
-            <CallSimulator cadences={cadences} onCallComplete={() => window.location.reload()} />
+            <CallSimulator cadences={cadences} onCallComplete={refresh} />
           </div>
           <div className="lg:col-span-2">
-            <CallLogsTable calls={calls} onRefresh={() => window.location.reload()} />
+            <CallLogsTable calls={calls} onRefresh={refresh} />
           </div>
         </div>
       </main>

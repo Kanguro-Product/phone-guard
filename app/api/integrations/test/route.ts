@@ -41,6 +41,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, message: "Vonage credentials present" })
     }
 
+    if (provider === "openai") {
+      // Test OpenAI API with a simple request
+      const testResponse = await fetch("https://api.openai.com/v1/models", {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${data.api_key}`,
+          "Content-Type": "application/json",
+        },
+      })
+      
+      if (!testResponse.ok) {
+        return NextResponse.json({ ok: false, status: testResponse.status, message: "OpenAI API test failed" })
+      }
+      
+      const models = await testResponse.json()
+      return NextResponse.json({ 
+        ok: true, 
+        message: "OpenAI API connection successful",
+        models: models.data?.slice(0, 3).map((m: any) => m.id) || []
+      })
+    }
+
     return NextResponse.json({ ok: false, message: "Unknown provider" }, { status: 400 })
   } catch (e) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

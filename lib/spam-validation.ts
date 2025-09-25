@@ -375,5 +375,107 @@ export class SpamValidationService {
   }
 }
 
+// ChatGPT API provider for intelligent number analysis
+export class ChatGPTProvider implements SpamProvider {
+  name = "ChatGPT"
+  private apiKey: string
+
+  constructor(apiKey: string) {
+    this.apiKey = apiKey
+  }
+
+  async checkNumber(phoneNumber: string): Promise<SpamCheckResult> {
+    try {
+      console.log(`[v0] ChatGPT analyzing number: ${phoneNumber}`)
+
+      const prompt = `Analiza este número telefónico para determinar si es probable que sea SPAM o fraudulento: ${phoneNumber}
+
+Proporciona tu análisis en el siguiente formato JSON:
+{
+  "isSpam": boolean,
+  "confidence": number (0-1),
+  "reputation": number (0-100),
+  "reports": number,
+  "category": string,
+  "reason": string,
+  "analysis": string
+}
+
+Considera estos factores:
+- Patrones de números sospechosos
+- Números conocidos de telemarketing
+- Números de servicios automatizados
+- Números internacionales sospechosos
+- Patrones de fraude conocidos
+
+Responde SOLO con el JSON, sin texto adicional.`
+
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4",
+          messages: [
+            {
+              role: "system",
+              content: "Eres un experto en análisis de números telefónicos y detección de SPAM. Responde siempre en formato JSON válido."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          max_tokens: 500,
+          temperature: 0.3,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`ChatGPT API error: ${response.status}`)
+      }
+
+      const data = await response.json()
+      const content = data.choices[0]?.message?.content
+
+      if (!content) {
+        throw new Error("No response content from ChatGPT")
+      }
+
+      // Parse JSON response
+      const analysis = JSON.parse(content)
+
+      return {
+        isSpam: analysis.isSpam || false,
+        confidence: Math.min(Math.max(analysis.confidence || 0.5, 0), 1),
+        provider: this.name,
+        details: {
+          reputation: Math.min(Math.max(analysis.reputation || 70, 0), 100),
+          reports: analysis.reports || 0,
+          category: analysis.category || "unknown",
+          reason: analysis.reason || "ChatGPT analysis",
+          analysis: analysis.analysis || ""
+        },
+      }
+    } catch (error) {
+      console.error("[v0] ChatGPT API error:", error)
+      
+      // Fallback to conservative analysis
+      return {
+        isSpam: false,
+        confidence: 0.3,
+        provider: this.name,
+        details: {
+          reputation: 70,
+          reports: 0,
+          reason: "ChatGPT API unavailable, using fallback analysis",
+        },
+      }
+    }
+  }
+}
+
 // Singleton instance
 export const spamValidator = new SpamValidationService()

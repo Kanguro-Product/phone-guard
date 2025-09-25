@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Shield, ShieldCheck, ShieldAlert, RefreshCw, AlertTriangle, CheckCircle, Clock, X } from "lucide-react"
+import { Shield, ShieldCheck, ShieldAlert, RefreshCw, AlertTriangle, CheckCircle, Clock, X, Bot, Brain, Sparkles } from "lucide-react"
 
 interface SpamValidationPanelProps {
   phoneNumberId: string
@@ -25,6 +25,10 @@ export function SpamValidationPanel({
   const [validationResult, setValidationResult] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [showResults, setShowResults] = useState(false)
+  
+  // Use updated average score from validation result if available, otherwise use current reputation
+  const displayReputation = validationResult?.updatedAverageScore ?? currentReputation
+  const displayStatus = validationResult?.updatedStatus ?? currentStatus
 
   const handleValidate = async () => {
     setIsValidating(true)
@@ -99,6 +103,34 @@ export function SpamValidationPanel({
     setError(null)
   }
 
+  // Helper function to get ChatGPT result
+  const getChatGPTResult = () => {
+    if (!validationResult?.validation?.providerResults) return null
+    return validationResult.validation.providerResults.find((result: any) => result.provider === "ChatGPT")
+  }
+
+  // Helper function to get other provider results
+  const getOtherProviderResults = () => {
+    if (!validationResult?.validation?.providerResults) return []
+    return validationResult.validation.providerResults.filter((result: any) => result.provider !== "ChatGPT")
+  }
+
+  // Helper function to get provider icon
+  const getProviderIcon = (provider: string) => {
+    switch (provider) {
+      case "ChatGPT":
+        return <Bot className="h-4 w-4 text-purple-500" />
+      case "Hiya":
+        return <Shield className="h-4 w-4 text-blue-500" />
+      case "Numverify":
+        return <CheckCircle className="h-4 w-4 text-green-500" />
+      case "TrueCaller":
+        return <ShieldCheck className="h-4 w-4 text-orange-500" />
+      default:
+        return <Shield className="h-4 w-4 text-gray-500" />
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -110,14 +142,30 @@ export function SpamValidationPanel({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Current Status */}
-        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+        <div className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
+          validationResult ? 'bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800' : 'bg-muted'
+        }`}>
           <div className="flex items-center space-x-2">
-            {getReputationIcon(currentReputation)}
-            <span className="text-sm font-medium text-foreground">Current Reputation</span>
+            {getReputationIcon(displayReputation)}
+            <span className="text-sm font-medium text-foreground">
+              {validationResult ? "Updated Average Score" : "Current Average Score"}
+            </span>
+            {validationResult && (
+              <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                ✓ Updated
+              </Badge>
+            )}
           </div>
           <div className="flex items-center space-x-2">
-            <span className={`font-bold ${getReputationColor(currentReputation)}`}>{currentReputation}</span>
-            {getStatusBadge(currentStatus)}
+            <span className={`font-bold ${getReputationColor(displayReputation)}`}>{displayReputation}</span>
+            {getStatusBadge(displayStatus)}
+            {validationResult && displayReputation !== currentReputation && (
+              <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                <span>{currentReputation}</span>
+                <span>→</span>
+                <span className="font-medium text-foreground">{displayReputation}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -142,6 +190,16 @@ export function SpamValidationPanel({
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
               <span>Checking with multiple SPAM databases...</span>
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                <Bot className="h-3 w-3 text-purple-500" />
+                <span>ChatGPT AI analyzing number patterns...</span>
+              </div>
+              <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                <Shield className="h-3 w-3 text-blue-500" />
+                <span>Checking reputation databases...</span>
+              </div>
             </div>
             <Progress value={undefined} className="w-full" />
           </div>
@@ -199,27 +257,108 @@ export function SpamValidationPanel({
               <Progress value={validationResult.updatedReputation} className="w-full" />
             </div>
 
-            {/* Provider Results */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-foreground">Provider Results</h4>
-              {validationResult.validation.providerResults.map((result: any, index: number) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-muted rounded text-sm">
-                  <span className="font-medium text-foreground">{result.provider}</span>
-                  <div className="flex items-center space-x-2">
-                    {result.isSpam ? (
-                      <Badge variant="destructive" className="text-xs">
-                        SPAM
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" className="text-xs">
-                        Clean
-                      </Badge>
-                    )}
-                    <span className="text-muted-foreground">Rep: {result.details.reputation}</span>
-                  </div>
+            {/* ChatGPT AI Analysis - Featured */}
+            {getChatGPTResult() && (
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Bot className="h-5 w-5 text-purple-500" />
+                  <h4 className="text-sm font-medium text-foreground">AI Analysis by ChatGPT</h4>
+                  <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    AI Powered
+                  </Badge>
                 </div>
-              ))}
-            </div>
+                
+                <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-2">
+                      {getChatGPTResult().isSpam ? (
+                        <ShieldAlert className="h-5 w-5 text-red-500" />
+                      ) : (
+                        <CheckCircle className="h-5 w-5 text-green-500" />
+                      )}
+                      <span className="font-medium text-foreground">
+                        {getChatGPTResult().isSpam ? "SPAM Detected" : "Number Appears Clean"}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant={getChatGPTResult().isSpam ? "destructive" : "secondary"} className="text-xs">
+                        Confidence: {Math.round(getChatGPTResult().confidence * 100)}%
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center space-x-2">
+                      <Brain className="h-4 w-4 text-purple-500" />
+                      <span className="text-muted-foreground">Reputation Score:</span>
+                      <span className="font-medium text-foreground">{getChatGPTResult().details.reputation}/100</span>
+                    </div>
+                    
+                    {getChatGPTResult().details.category && (
+                      <div className="flex items-center space-x-2">
+                        <span className="text-muted-foreground">Category:</span>
+                        <Badge variant="outline" className="text-xs">
+                          {getChatGPTResult().details.category}
+                        </Badge>
+                      </div>
+                    )}
+                    
+                    {getChatGPTResult().details.reports > 0 && (
+                      <div className="flex items-center space-x-2">
+                        <span className="text-muted-foreground">Reports:</span>
+                        <span className="font-medium text-foreground">{getChatGPTResult().details.reports}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {getChatGPTResult().details.analysis && (
+                    <div className="mt-3 p-3 bg-white/50 dark:bg-black/20 rounded border">
+                      <div className="flex items-start space-x-2">
+                        <Sparkles className="h-4 w-4 text-purple-500 mt-0.5" />
+                        <div>
+                          <div className="text-xs font-medium text-muted-foreground mb-1">AI Analysis:</div>
+                          <p className="text-sm text-foreground">{getChatGPTResult().details.analysis}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {getChatGPTResult().details.reason && (
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      <strong>Reason:</strong> {getChatGPTResult().details.reason}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Other Provider Results */}
+            {getOtherProviderResults().length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-foreground">Other Provider Results</h4>
+                {getOtherProviderResults().map((result: any, index: number) => (
+                  <div key={index} className="flex items-center justify-between p-2 bg-muted rounded text-sm">
+                    <div className="flex items-center space-x-2">
+                      {getProviderIcon(result.provider)}
+                      <span className="font-medium text-foreground">{result.provider}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {result.isSpam ? (
+                        <Badge variant="destructive" className="text-xs">
+                          SPAM
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">
+                          Clean
+                        </Badge>
+                      )}
+                      <span className="text-muted-foreground">Rep: {result.details.reputation}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Details */}
             {validationResult.validation.overallResult.details.reason && (

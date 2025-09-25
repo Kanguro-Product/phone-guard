@@ -9,6 +9,8 @@ import { RecentActivity } from "@/components/recent-activity"
 import { SystemAlerts } from "@/components/system-alerts"
 import { PageTutorial } from "@/components/tutorial/page-tutorial"
 import { useTutorialContext } from "@/components/tutorial/tutorial-provider"
+import { usePhoneNumbersRealtime, useCallsRealtime } from "@/hooks/use-realtime-updates"
+import { RealtimeStatus } from "@/components/realtime-status"
 
 interface DashboardPageClientProps {
   user: any
@@ -21,6 +23,15 @@ interface DashboardPageClientProps {
 export function DashboardPageClient({ user, stats, phoneNumbers, recentCalls, weekCalls }: DashboardPageClientProps) {
   const { shouldShowPageTutorial, markPageVisited, shouldShowMainTutorial } = useTutorialContext()
   const [showTutorial, setShowTutorial] = useState(false)
+  
+  // Hooks para actualizaciones en tiempo real
+  const phoneNumbersRealtime = usePhoneNumbersRealtime()
+  const callsRealtime = useCallsRealtime()
+  
+  // Usar el estado más reciente entre ambos
+  const lastUpdate = phoneNumbersRealtime.lastUpdate || callsRealtime.lastUpdate
+  const status = phoneNumbersRealtime.isConnected && callsRealtime.isConnected ? 'realtime' : 
+                 phoneNumbersRealtime.status === 'realtime' || callsRealtime.status === 'realtime' ? 'realtime' : 'polling'
 
   useEffect(() => {
     // Show main tutorial first if user hasn't seen it
@@ -46,8 +57,20 @@ export function DashboardPageClient({ user, stats, phoneNumbers, recentCalls, we
 
       <main className="container mx-auto px-6 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground text-balance">Dashboard</h1>
-          <p className="text-muted-foreground mt-2">Monitor your phone numbers and cadence performance</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground text-balance">Dashboard</h1>
+              <p className="text-muted-foreground mt-2">Monitor your phone numbers and cadence performance</p>
+            </div>
+            <RealtimeStatus 
+              status={status} 
+              lastUpdate={lastUpdate} 
+              onRefresh={() => {
+                phoneNumbersRealtime.refresh()
+                callsRealtime.refresh()
+              }}
+            />
+          </div>
         </div>
 
         {/* Stats Grid */}

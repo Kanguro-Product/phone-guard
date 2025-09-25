@@ -42,6 +42,12 @@ const PROVIDER_HINT: Record<string, { key: string; secret?: string; doc?: string
     help:
       "Sign up at numverify and copy your Access Key from the Dashboard. This adds carrier, line type and location data.",
   },
+  openai: {
+    key: "API Key",
+    doc: "https://platform.openai.com/",
+    help:
+      "Get your OpenAI API key from platform.openai.com → API Keys. This enables ChatGPT-powered number analysis and spam detection.",
+  },
 }
 
 export function IntegrationsPageClient({ user, initialIntegrations }: IntegrationsPageClientProps) {
@@ -57,6 +63,9 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
   const [numverifyId, setNumverifyId] = useState<string | undefined>(
     initialIntegrations.find((x) => x.provider.toLowerCase() === "numverify")?.id,
   )
+  const [openaiId, setOpenaiId] = useState<string | undefined>(
+    initialIntegrations.find((x) => x.provider.toLowerCase() === "openai")?.id,
+  )
   const [vonageEnabled, setVonageEnabled] = useState(
     initialIntegrations.find((x) => x.provider.toLowerCase() === "vonage")?.enabled ?? true,
   )
@@ -66,9 +75,13 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
   const [numverifyEnabled, setNumverifyEnabled] = useState(
     initialIntegrations.find((x) => x.provider.toLowerCase() === "numverify")?.enabled ?? true,
   )
+  const [openaiEnabled, setOpenaiEnabled] = useState(
+    initialIntegrations.find((x) => x.provider.toLowerCase() === "openai")?.enabled ?? true,
+  )
   const [vonage, setVonage] = useState<{ api_key: string; api_secret: string }>({ api_key: "", api_secret: "" })
   const [hiya, setHiya] = useState<{ api_key: string; api_secret: string }>({ api_key: "", api_secret: "" })
   const [numverify, setNumverify] = useState<{ api_key: string }>({ api_key: "" })
+  const [openai, setOpenai] = useState<{ api_key: string }>({ api_key: "" })
 
   const masked = useMemo(() => (value: string) => {
     if (!value) return ""
@@ -77,13 +90,13 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
   }, [])
 
   const upsertProvider = async (
-    provider: "vonage" | "hiya" | "numverify",
+    provider: "vonage" | "hiya" | "numverify" | "openai",
     values: { api_key: string; api_secret?: string },
     enabled: boolean,
   ) => {
     if (!provider) return
-    if (!values.api_key && !((provider === "vonage" && vonageId) || (provider === "hiya" && hiyaId))) return
-    const currentId = provider === "vonage" ? vonageId : provider === "hiya" ? hiyaId : numverifyId
+    if (!values.api_key && !((provider === "vonage" && vonageId) || (provider === "hiya" && hiyaId) || (provider === "openai" && openaiId))) return
+    const currentId = provider === "vonage" ? vonageId : provider === "hiya" ? hiyaId : provider === "openai" ? openaiId : numverifyId
     setLoading(provider)
     try {
       if (currentId) {
@@ -102,6 +115,7 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
         if (provider === "vonage") setVonageId(data?.id)
         if (provider === "hiya") setHiyaId(data?.id)
         if (provider === "numverify") setNumverifyId(data?.id)
+        if (provider === "openai") setOpenaiId(data?.id)
       }
       alert("Saved successfully")
     } catch (e) {
@@ -134,7 +148,7 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
     </div>
   )
 
-  const testConnection = async (provider: "numverify" | "hiya" | "vonage") => {
+  const testConnection = async (provider: "numverify" | "hiya" | "vonage" | "openai") => {
     setLoading(provider)
     try {
       const res = await fetch("/api/integrations/test", {
@@ -164,7 +178,7 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-foreground text-balance">Integrations</h1>
-            <p className="text-muted-foreground mt-2">Only Vonage (Calls) and Hiya (Spam) are supported right now</p>
+            <p className="text-muted-foreground mt-2">Configure external APIs for calls, spam detection, and AI analysis</p>
           </div>
         </div>
         <Disclaimer />
@@ -304,6 +318,49 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
                     Test connection
                   </Button>
                   <Button onClick={() => upsertProvider("numverify", numverify as any, numverifyEnabled)} disabled={loading === "numverify"}>
+                    Save
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-foreground flex items-center justify-between">
+                <span>OpenAI ChatGPT (AI Analysis)</span>
+                <Badge variant={openaiEnabled ? "default" : "secondary"}>{openaiEnabled ? "Enabled" : "Disabled"}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="openai_key">{PROVIDER_HINT.openai.key}</Label>
+                  <Input
+                    id="openai_key"
+                    type="password"
+                    placeholder={openaiId ? "••••••••••" : "paste your OpenAI API key"}
+                    value={openai.api_key}
+                    onChange={(e) => setOpenai({ api_key: e.target.value })}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="openai_enabled"
+                    type="checkbox"
+                    checked={openaiEnabled}
+                    onChange={(e) => setOpenaiEnabled(e.target.checked)}
+                  />
+                  <Label htmlFor="openai_enabled">Enabled</Label>
+                </div>
+                {PROVIDER_HINT.openai.help && (
+                  <div className="text-[11px] text-muted-foreground">{PROVIDER_HINT.openai.help} Docs: {PROVIDER_HINT.openai.doc}</div>
+                )}
+                <div className="flex justify-end">
+                  <Button variant="outline" onClick={() => testConnection("openai")} disabled={loading === "openai"}>
+                    Test connection
+                  </Button>
+                  <Button onClick={() => upsertProvider("openai", openai as any, openaiEnabled)} disabled={loading === "openai"}>
                     Save
                   </Button>
                 </div>
