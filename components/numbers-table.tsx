@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { MoreHorizontal, Phone, TrendingUp, TrendingDown, AlertTriangle, Shield, Info, Bot, Sparkles, CheckCircle, ArrowUpDown, ArrowUp, ArrowDown, Filter, X } from "lucide-react"
+import { MoreHorizontal, Phone, TrendingUp, TrendingDown, AlertTriangle, Shield, Info, Bot, Sparkles, CheckCircle, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, Archive, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { SpamValidationPanel } from "./spam-validation-panel"
 import { BulkValidationDialog } from "./bulk-validation-dialog"
@@ -86,11 +86,20 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
       inactive: "secondary",
       blocked: "destructive",
       spam: "destructive",
+      deprecated: "outline",
+    } as const
+
+    const labels = {
+      active: "Activo",
+      inactive: "Inactivo",
+      blocked: "Bloqueado",
+      spam: "Spam",
+      deprecated: "En Desuso",
     } as const
 
     return (
       <Badge variant={variants[status as keyof typeof variants] || "secondary"}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {labels[status as keyof typeof labels] || status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     )
   }
@@ -269,6 +278,9 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
   // Filtering functions
   const applyFilters = (numbers: PhoneNumber[]) => {
     return numbers.filter(number => {
+      // By default, exclude deprecated numbers unless specifically filtering for them
+      if (filters.status !== 'deprecated' && number.status === 'deprecated') return false
+      
       // Status filter
       if (filters.status !== 'all' && number.status !== filters.status) return false
       
@@ -369,7 +381,7 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this phone number?")) return
+    if (!confirm("¿Estás seguro de que quieres eliminar permanentemente este número? Esta acción no se puede deshacer.")) return
 
     setLoading(id)
     try {
@@ -379,6 +391,42 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
       router.refresh()
     } catch (error) {
       console.error("Error deleting number:", error)
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  const handleDeprecate = async (id: string) => {
+    if (!confirm("¿Estás seguro de que quieres marcar este número como 'en desuso'? El número se ocultará de la vista principal pero se mantendrá en el historial.")) return
+
+    setLoading(id)
+    try {
+      const response = await fetch("/api/numbers/deprecate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ phoneNumberId: id }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Error al marcar como en desuso")
+      }
+
+      // Update local state
+      setLocalNumbers(prev => 
+        prev.map(num => 
+          num.id === id 
+            ? { ...num, status: "deprecated", updated_at: new Date().toISOString() }
+            : num
+        )
+      )
+
+      router.refresh()
+    } catch (error) {
+      console.error("Error deprecating number:", error)
+      alert("Error al marcar el número como en desuso. Por favor, inténtalo de nuevo.")
     } finally {
       setLoading(null)
     }
@@ -498,6 +546,7 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                   <option value="inactive">Inactivo</option>
                   <option value="blocked">Bloqueado</option>
                   <option value="spam">Spam</option>
+                  <option value="deprecated">En Desuso</option>
                 </select>
                 
                 {/* Provider Filter */}
@@ -841,8 +890,26 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                             >
                               Block Number
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDeprecate(number.id)}
+                              disabled={number.status === "deprecated"}
+                              className="text-orange-600"
+                            >
+                              <Archive className="h-4 w-4 mr-2" />
+                              Marcar como En Desuso
+                            </DropdownMenuItem>
+                            {number.status === "deprecated" && (
+                              <DropdownMenuItem
+                                onClick={() => handleStatusChange(number.id, "active")}
+                                className="text-green-600"
+                              >
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Restaurar a Activo
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem onClick={() => handleDelete(number.id)} className="text-red-600">
-                              Delete
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Eliminar Permanentemente
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
