@@ -24,7 +24,7 @@ export function DashboardPageClient({ user, stats, phoneNumbers, recentCalls, we
   const { shouldShowPageTutorial, markPageVisited, shouldShowMainTutorial } = useTutorialContext()
   const [showTutorial, setShowTutorial] = useState(false)
   
-  // Hooks para actualizaciones en tiempo real
+  // Hooks para actualizaciones en real-time
   const phoneNumbersRealtime = usePhoneNumbersRealtime()
   const callsRealtime = useCallsRealtime()
   

@@ -16,10 +16,10 @@ export function RealtimeStatus({ status, lastUpdate, onRefresh }: RealtimeStatus
       case 'realtime':
         return {
           icon: <Wifi className="h-3 w-3" />,
-          label: "Tiempo Real",
+          label: "Real-Time",
           variant: "default" as const,
           color: "text-green-500",
-          tooltip: "Conectado en tiempo real - Los datos se actualizan automáticamente"
+          tooltip: "Conectado en real-time - Los datos se actualizan automáticamente"
         }
       case 'polling':
         return {

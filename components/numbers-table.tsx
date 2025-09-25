@@ -59,7 +59,7 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
     showSpamOnly: false
   })
   
-  // Hook para actualizaciones en tiempo real
+  // Hook para actualizaciones en real-time
   const { isConnected, lastUpdate, refresh, status } = usePhoneNumbersRealtime()
   
   // Update local numbers when props change

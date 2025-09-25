@@ -19,7 +19,7 @@ export function CallsPageClient({ user, cadences, calls }: CallsPageClientProps)
   const { shouldShowPageTutorial, markPageVisited } = useTutorialContext()
   const [showTutorial, setShowTutorial] = useState(false)
   
-  // Hook para actualizaciones en tiempo real
+  // Hook para actualizaciones en real-time
   const { isConnected, lastUpdate, refresh, status } = useCallsRealtime()
 
   useEffect(() => {
