@@ -13,9 +13,36 @@ export default async function AdminPage() {
   }
 
   // Check if user is admin
-  const { data: userProfile } = await supabase.from("user_profiles").select("role").eq("user_id", user.id).single()
+  let isAdmin = false
+  
+  try {
+    // Try user_profiles first
+    const { data: userProfile, error: profileError } = await supabase
+      .from("user_profiles")
+      .select("role")
+      .eq("user_id", user.id)
+      .single()
 
-  if (!userProfile || userProfile.role !== "admin") {
+    if (userProfile && !profileError) {
+      isAdmin = userProfile.role === "admin"
+    } else {
+      // Fallback to users table
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", user.id)
+        .single()
+
+      if (userData && !userError) {
+        isAdmin = userData.role === "admin"
+      }
+    }
+  } catch (error) {
+    console.error("Error checking admin status:", error)
+    isAdmin = false
+  }
+
+  if (!isAdmin) {
     redirect("/dashboard")
   }
 

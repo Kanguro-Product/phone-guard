@@ -21,10 +21,35 @@ export function Navigation({ user }: NavigationProps) {
 
   useEffect(() => {
     const getUserRole = async () => {
-      const { data } = await supabase.from("user_profiles").select("role").eq("user_id", user.id).single()
+      try {
+        // Try user_profiles first
+        const { data: profileData, error: profileError } = await supabase
+          .from("user_profiles")
+          .select("role")
+          .eq("user_id", user.id)
+          .single()
 
-      if (data) {
-        setUserRole(data.role)
+        if (profileData && !profileError) {
+          setUserRole(profileData.role)
+          return
+        }
+
+        // Fallback to users table if user_profiles fails
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", user.id)
+          .single()
+
+        if (userData && !userError) {
+          setUserRole(userData.role)
+        } else {
+          console.warn("Could not fetch user role:", userError || profileError)
+          setUserRole("user") // Default fallback
+        }
+      } catch (error) {
+        console.error("Error fetching user role:", error)
+        setUserRole("user") // Default fallback
       }
     }
 
