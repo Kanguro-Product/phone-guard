@@ -863,17 +863,27 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
+                            <Button 
+                              variant="ghost" 
+                              className="h-8 w-8 p-0"
+                              onClick={() => console.log("Dropdown trigger clicked for number:", number.number)}
+                            >
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setSelectedNumber(number)}>
+                            <DropdownMenuItem onClick={() => {
+                              console.log("SPAM Check clicked for:", number.number)
+                              setSelectedNumber(number)
+                            }}>
                               <Shield className="h-4 w-4 mr-2" />
                               SPAM Check
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleStatusChange(number.id, "active")}
+                              onClick={() => {
+                                console.log("Set Active clicked for:", number.number)
+                                handleStatusChange(number.id, "active")
+                              }}
                               disabled={number.status === "active" || loading === number.id}
                             >
                               {loading === number.id ? (
