@@ -98,7 +98,7 @@ export function BulkUploadDialog({ children, userId }: BulkUploadDialogProps) {
         number,
         provider: "Manual Upload",
         status: "active",
-        reputation_score: 100,
+        reputation_score: null,
         created_at: new Date().toISOString(),
       }))
 

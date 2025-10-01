@@ -30,16 +30,23 @@ export function SpamValidationPanel({
   
   // API selection state
   const [selectedAPIs, setSelectedAPIs] = useState({
-    numverify: true,
-    openai: true,
-    hiya: false // Disabled until coming soon
+    numverify: false,
+    openai: false,
+    hiya: false
   })
   
   // API quota/token state
   const [apiQuotas, setApiQuotas] = useState({
-    numverify: { remaining: null, total: null, loading: false },
-    openai: { remaining: null, total: null, loading: false },
-    hiya: { remaining: null, total: null, loading: false }
+    numverify: { remaining: null, total: null, loading: false, hasCredentials: false },
+    openai: { remaining: null, total: null, loading: false, hasCredentials: false },
+    hiya: { remaining: null, total: null, loading: false, hasCredentials: false }
+  })
+  
+  // API credentials state
+  const [apiCredentials, setApiCredentials] = useState({
+    numverify: { hasKey: false, hasSecret: false },
+    openai: { hasKey: false, hasSecret: false },
+    hiya: { hasKey: false, hasSecret: false }
   })
   
   // Use updated average score from validation result if available, otherwise use current reputation
@@ -75,9 +82,30 @@ export function SpamValidationPanel({
     }
   }
 
-  // Fetch quotas on component mount
+  // Function to check API credentials
+  const checkApiCredentials = async () => {
+    try {
+      const response = await fetch('/api/integrations/credentials')
+      if (response.ok) {
+        const credentials = await response.json()
+        setApiCredentials(credentials)
+        
+        // Update selected APIs based on available credentials
+        setSelectedAPIs(prev => ({
+          numverify: prev.numverify && credentials.numverify.hasKey,
+          openai: prev.openai && credentials.openai.hasKey,
+          hiya: prev.hiya && credentials.hiya.hasKey
+        }))
+      }
+    } catch (error) {
+      console.error('Error checking API credentials:', error)
+    }
+  }
+
+  // Fetch quotas and credentials on component mount
   useEffect(() => {
     fetchApiQuotas()
+    checkApiCredentials()
   }, [])
 
   const handleValidate = async () => {
@@ -243,14 +271,23 @@ export function SpamValidationPanel({
               <Checkbox 
                 id="numverify" 
                 checked={selectedAPIs.numverify}
+                disabled={!apiCredentials.numverify.hasKey}
                 onCheckedChange={(checked) => 
                   setSelectedAPIs(prev => ({ ...prev, numverify: checked as boolean }))
                 }
               />
-              <Label htmlFor="numverify" className="flex items-center space-x-2 cursor-pointer">
-                <CheckCircle className="h-4 w-4 text-green-500" />
+              <Label htmlFor="numverify" className={`flex items-center space-x-2 cursor-pointer ${!apiCredentials.numverify.hasKey ? 'opacity-50' : ''}`}>
+                {apiCredentials.numverify.hasKey ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <X className="h-4 w-4 text-red-500" />
+                )}
                 <span>Numverify (Validación de Carrier)</span>
-                {apiQuotas.numverify.loading ? (
+                {!apiCredentials.numverify.hasKey ? (
+                  <Badge variant="destructive" className="text-xs">
+                    Sin API Key
+                  </Badge>
+                ) : apiQuotas.numverify.loading ? (
                   <Badge variant="outline" className="text-xs">
                     ⏳ Cargando...
                   </Badge>
@@ -266,14 +303,23 @@ export function SpamValidationPanel({
               <Checkbox 
                 id="openai" 
                 checked={selectedAPIs.openai}
+                disabled={!apiCredentials.openai.hasKey}
                 onCheckedChange={(checked) => 
                   setSelectedAPIs(prev => ({ ...prev, openai: checked as boolean }))
                 }
               />
-              <Label htmlFor="openai" className="flex items-center space-x-2 cursor-pointer">
-                <Bot className="h-4 w-4 text-purple-500" />
+              <Label htmlFor="openai" className={`flex items-center space-x-2 cursor-pointer ${!apiCredentials.openai.hasKey ? 'opacity-50' : ''}`}>
+                {apiCredentials.openai.hasKey ? (
+                  <Bot className="h-4 w-4 text-purple-500" />
+                ) : (
+                  <X className="h-4 w-4 text-red-500" />
+                )}
                 <span>OpenAI ChatGPT (Análisis IA)</span>
-                {apiQuotas.openai.loading ? (
+                {!apiCredentials.openai.hasKey ? (
+                  <Badge variant="destructive" className="text-xs">
+                    Sin API Key
+                  </Badge>
+                ) : apiQuotas.openai.loading ? (
                   <Badge variant="outline" className="text-xs">
                     ⏳ Cargando...
                   </Badge>
@@ -288,13 +334,28 @@ export function SpamValidationPanel({
             <div className="flex items-center space-x-2">
               <Checkbox 
                 id="hiya" 
-                checked={false}
-                disabled={true}
-                onCheckedChange={() => {}} // No-op since it's disabled
+                checked={selectedAPIs.hiya}
+                disabled={!apiCredentials.hiya.hasKey}
+                onCheckedChange={(checked) => 
+                  setSelectedAPIs(prev => ({ ...prev, hiya: checked as boolean }))
+                }
               />
-              <Label htmlFor="hiya" className="flex items-center space-x-2 cursor-not-allowed opacity-60">
-                <Shield className="h-4 w-4 text-blue-500" />
-                <span>Hiya (Coming Soon)</span>
+              <Label htmlFor="hiya" className={`flex items-center space-x-2 cursor-pointer ${!apiCredentials.hiya.hasKey ? 'opacity-50' : ''}`}>
+                {apiCredentials.hiya.hasKey ? (
+                  <Shield className="h-4 w-4 text-blue-500" />
+                ) : (
+                  <X className="h-4 w-4 text-red-500" />
+                )}
+                <span>Hiya (Detección Avanzada)</span>
+                {!apiCredentials.hiya.hasKey ? (
+                  <Badge variant="destructive" className="text-xs">
+                    Sin API Key
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-xs">
+                    Disponible
+                  </Badge>
+                )}
               </Label>
             </div>
           </div>
@@ -303,17 +364,77 @@ export function SpamValidationPanel({
         <div className="text-xs text-muted-foreground">
           {Object.values(selectedAPIs).filter(Boolean).length === 0 
             ? "⚠️ Selecciona al menos una API para continuar"
-            : `${Object.values(selectedAPIs).filter(Boolean).length} API(s) seleccionada(s)`
+            : `✅ ${Object.values(selectedAPIs).filter(Boolean).length} API(s) seleccionada(s)`
           }
         </div>
+        
+        {/* Alert when no APIs have credentials */}
+        {!apiCredentials.numverify.hasKey && !apiCredentials.openai.hasKey && !apiCredentials.hiya.hasKey && (
+          <Alert className="mt-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>No hay APIs configuradas.</strong> Ve a la página de Integraciones para configurar tus API keys y poder validar números.
+            </AlertDescription>
+          </Alert>
+        )}
 
-        {/* API Usage Info */}
+        {/* API Usage Info with Progress Bars */}
         <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-          <div className="text-xs font-medium text-foreground mb-2">📊 Información de Uso:</div>
-          <div className="space-y-1 text-xs text-muted-foreground">
-            <div>• <strong>Numverify:</strong> Límite mensual según plan</div>
-            <div>• <strong>OpenAI:</strong> Basado en créditos ($)</div>
-            <div>• <strong>Hiya:</strong> Próximamente disponible</div>
+          <div className="text-xs font-medium text-foreground mb-3">📊 Estado de Licencias:</div>
+          <div className="space-y-3">
+            {/* Numverify Progress */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-medium">Numverify</span>
+                <span className="text-xs text-muted-foreground">
+                  {apiCredentials.numverify.hasKey ? "Configurado" : "Sin API Key"}
+                </span>
+              </div>
+              {apiCredentials.numverify.hasKey && (
+                <div className="space-y-1">
+                  <Progress value={75} className="h-2" />
+                  <div className="text-xs text-muted-foreground">
+                    Límite mensual: 1,000 validaciones incluidas
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* OpenAI Progress */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-medium">OpenAI</span>
+                <span className="text-xs text-muted-foreground">
+                  {apiCredentials.openai.hasKey ? "Configurado" : "Sin API Key"}
+                </span>
+              </div>
+              {apiCredentials.openai.hasKey && (
+                <div className="space-y-1">
+                  <Progress value={45} className="h-2" />
+                  <div className="text-xs text-muted-foreground">
+                    Créditos: $0.03 por validación
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Hiya Progress */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-medium">Hiya</span>
+                <span className="text-xs text-muted-foreground">
+                  {apiCredentials.hiya.hasKey ? "Configurado" : "Sin API Key"}
+                </span>
+              </div>
+              {apiCredentials.hiya.hasKey && (
+                <div className="space-y-1">
+                  <Progress value={0} className="h-2" />
+                  <div className="text-xs text-muted-foreground">
+                    Disponible para uso
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         </div>

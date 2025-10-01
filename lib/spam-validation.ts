@@ -276,15 +276,26 @@ export class SpamValidationService {
     this.providers = providers && providers.length > 0 ? providers : [new TrueCallerProvider(), new HiyaProvider()]
   }
 
-  async validateNumber(phoneNumber: string): Promise<{
+  async validateNumber(phoneNumber: string, selectedAPIs?: { numverify?: boolean, openai?: boolean, hiya?: boolean }): Promise<{
     overallResult: SpamCheckResult
     providerResults: SpamCheckResult[]
   }> {
     console.log(`[v0] Starting SPAM validation for ${phoneNumber}`)
 
     try {
-      // Check with all providers in parallel
-      const results = await Promise.allSettled(this.providers.map((provider) => provider.checkNumber(phoneNumber)))
+      // Filter providers based on selected APIs
+      let providersToUse = this.providers
+      if (selectedAPIs) {
+        providersToUse = this.providers.filter(provider => {
+          if (provider.name === "Numverify" && !selectedAPIs.numverify) return false
+          if (provider.name === "OpenAI" && !selectedAPIs.openai) return false
+          if (provider.name === "Hiya" && !selectedAPIs.hiya) return false
+          return true
+        })
+      }
+
+      // Check with selected providers in parallel
+      const results = await Promise.allSettled(providersToUse.map((provider) => provider.checkNumber(phoneNumber)))
 
       const providerResults: SpamCheckResult[] = []
 

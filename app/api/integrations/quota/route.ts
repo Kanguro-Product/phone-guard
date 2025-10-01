@@ -23,28 +23,32 @@ export async function GET(request: NextRequest) {
     ])
 
     const quotas = {
-      numverify: { remaining: null, total: null, loading: false },
-      openai: { remaining: null, total: null, loading: false },
-      hiya: { remaining: null, total: null, loading: false }
+      numverify: { remaining: null, total: null, loading: false, hasCredentials: false },
+      openai: { remaining: null, total: null, loading: false, hasCredentials: false },
+      hiya: { remaining: null, total: null, loading: false, hasCredentials: false }
     }
 
     // Check Numverify quota
     if (numverify?.api_key) {
+      quotas.numverify.hasCredentials = true
       try {
         // Numverify doesn't have a direct quota endpoint, so we'll simulate it
         // In a real implementation, you'd need to track usage in your database
         quotas.numverify = {
           remaining: "N/A", // Numverify uses monthly limits
           total: "N/A",
-          loading: false
+          loading: false,
+          hasCredentials: true
         }
       } catch (error) {
         console.error("Error fetching Numverify quota:", error)
+        quotas.numverify.hasCredentials = true
       }
     }
 
     // Check OpenAI quota (using usage API)
     if (openai?.api_key) {
+      quotas.openai.hasCredentials = true
       try {
         const response = await fetch("https://api.openai.com/v1/usage", {
           headers: {
@@ -58,14 +62,16 @@ export async function GET(request: NextRequest) {
           quotas.openai = {
             remaining: `$${data.total_usage ? (100 - data.total_usage).toFixed(2) : 'N/A'}`,
             total: "$100.00", // Assuming $100 monthly limit
-            loading: false
+            loading: false,
+            hasCredentials: true
           }
         } else {
           // If usage API fails, show generic info
           quotas.openai = {
             remaining: "Créditos disponibles",
             total: "N/A",
-            loading: false
+            loading: false,
+            hasCredentials: true
           }
         }
       } catch (error) {
@@ -73,16 +79,21 @@ export async function GET(request: NextRequest) {
         quotas.openai = {
           remaining: "Error al obtener",
           total: "N/A",
-          loading: false
+          loading: false,
+          hasCredentials: true
         }
       }
     }
 
     // Hiya is coming soon, so no quota check needed
+    if (hiya?.api_key) {
+      quotas.hiya.hasCredentials = true
+    }
     quotas.hiya = {
       remaining: null,
       total: null,
-      loading: false
+      loading: false,
+      hasCredentials: !!hiya?.api_key
     }
 
     return NextResponse.json(quotas)

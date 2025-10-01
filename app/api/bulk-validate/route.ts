@@ -4,6 +4,8 @@ import { spamValidator } from "@/lib/spam-validation"
 
 export async function POST(request: NextRequest) {
   try {
+    const { selectedAPIs } = await request.json()
+
     const supabase = await createClient()
 
     // Get user from session
@@ -14,6 +16,9 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    // Default to all APIs if none specified
+    const apisToUse = selectedAPIs || { numverify: true, openai: true, hiya: true }
 
     console.log(`[v0] Starting bulk SPAM validation for user: ${user.id}`)
 
@@ -45,11 +50,11 @@ export async function POST(request: NextRequest) {
     for (let i = 0; i < phoneNumbers.length; i += batchSize) {
       const batch = phoneNumbers.slice(i, i + batchSize)
 
-      const batchPromises = batch.map(async (phoneNumber) => {
+        const batchPromises = batch.map(async (phoneNumber) => {
         try {
           console.log(`[v0] Validating number: ${phoneNumber.number}`)
 
-          const validationResult = await spamValidator.validateNumber(phoneNumber.number)
+          const validationResult = await spamValidator.validateNumber(phoneNumber.number, apisToUse)
 
           // Update phone number reputation
           const newReputationScore = Math.max(0, Math.min(100, validationResult.overallResult.details.reputation))

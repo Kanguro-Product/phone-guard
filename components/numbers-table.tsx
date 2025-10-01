@@ -8,9 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { MoreHorizontal, Phone, TrendingUp, TrendingDown, AlertTriangle, Shield, Info, Bot, Sparkles, CheckCircle, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, Archive, Trash2 } from "lucide-react"
+import { Checkbox as UICheckbox } from "@/components/ui/checkbox"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { MoreHorizontal, Phone, TrendingUp, TrendingDown, AlertTriangle, Shield, Info, Bot, Sparkles, CheckCircle, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, Archive, Trash2, RefreshCw, Flag } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { SpamValidationPanel } from "./spam-validation-panel"
+import { SpamContextPanel } from "./spam-context-panel"
 import { BulkValidationDialog } from "./bulk-validation-dialog"
 import { usePhoneNumbersRealtime } from "@/hooks/use-realtime-updates"
 import { RealtimeStatus } from "./realtime-status"
@@ -19,16 +22,17 @@ interface PhoneNumber {
   id: string
   number: string
   provider: string
-  status: "active" | "inactive" | "blocked" | "spam"
-  reputation_score: number
-  numverify_score?: number
-  openai_score?: number
-  average_reputation_score?: number
+  status: "active" | "inactive" | "blocked" | "spam" | "deprecated"
+  reputation_score: number | null
+  numverify_score?: number | null
+  openai_score?: number | null
+  average_reputation_score?: number | null
   spam_reports: number
   successful_calls: number
   failed_calls: number
   created_at: string
   updated_at: string
+  last_checked?: string
   carrier?: string
   line_type?: string
   country_code?: string
@@ -38,29 +42,76 @@ interface PhoneNumber {
 
 interface NumbersTableProps {
   numbers: PhoneNumber[]
+  selectedNumbers?: Set<string>
+  onSelectionChange?: (selected: Set<string>) => void
+  onDeleteNumber?: (id: string) => void
+  onSelectAll?: () => void
 }
 
-export function NumbersTable({ numbers }: NumbersTableProps) {
+export function NumbersTable({ 
+  numbers, 
+  selectedNumbers = new Set(), 
+  onSelectionChange, 
+  onDeleteNumber,
+  onSelectAll 
+}: NumbersTableProps) {
   const [loading, setLoading] = useState<string | null>(null)
   const [selectedNumber, setSelectedNumber] = useState<PhoneNumber | null>(null)
   const [highlightSet, setHighlightSet] = useState<Set<string>>(new Set())
   const [localNumbers, setLocalNumbers] = useState<PhoneNumber[]>(numbers)
   const [updatingNumberId, setUpdatingNumberId] = useState<string | null>(null)
+  const [apiCredentials, setApiCredentials] = useState({
+    numverify: { hasKey: false },
+    openai: { hasKey: false },
+    hiya: { hasKey: false }
+  })
   const router = useRouter()
   const supabase = createClient()
+
+  // Check API credentials on component mount
+  useEffect(() => {
+    const checkApiCredentials = async () => {
+      try {
+        const response = await fetch('/api/integrations/credentials')
+        if (response.ok) {
+          const credentials = await response.json()
+          setApiCredentials(credentials)
+        }
+      } catch (error) {
+        console.error('Error checking API credentials:', error)
+      }
+    }
+    
+    checkApiCredentials()
+  }, [])
+
+  const handleSelectNumber = (id: string, checked: boolean) => {
+    if (!onSelectionChange) return
+    
+    const newSelection = new Set(selectedNumbers)
+    if (checked) {
+      newSelection.add(id)
+    } else {
+      newSelection.delete(id)
+    }
+    onSelectionChange(newSelection)
+  }
+
+  const isAllSelected = numbers.length > 0 && selectedNumbers.size === numbers.length
+  const isIndeterminate = selectedNumbers.size > 0 && selectedNumbers.size < numbers.length
   
   // Sorting and filtering states
   const [sortField, setSortField] = useState<keyof PhoneNumber>('average_reputation_score')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
   const [filters, setFilters] = useState({
-    status: 'all' as string,
+    status: 'all' as 'all' | 'active' | 'inactive' | 'blocked' | 'spam' | 'deprecated',
     provider: 'all' as string,
     scoreRange: 'all' as string,
     showSpamOnly: false
   })
   
   // Hook para actualizaciones en real-time
-  const { isConnected, lastUpdate, refresh, status } = usePhoneNumbersRealtime()
+  const { isConnected, lastUpdate, refresh, status: realtimeStatus } = usePhoneNumbersRealtime()
   
   // Update local numbers when props change
   useEffect(() => {
@@ -118,6 +169,11 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
 
   // Helper function to get background color based on score with specific ranges
   const getRowBackgroundColor = (score: number) => {
+    // Score 0 means no validation - gray background
+    if (score === 0) {
+      return `hsl(0, 0%, 95%)`
+    }
+    
     // Verde: 80-100 (degradado de verde claro a verde fuerte)
     if (score >= 80) {
       const intensity = (score - 80) / 20 // 0-1 dentro del rango verde
@@ -136,8 +192,8 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
       return `hsl(${hue}, ${saturation}%, ${lightness}%)`
     }
     
-    // Rojo: 0-59 (degradado de rojo claro a rojo fuerte)
-    const intensity = score / 59 // 0-1 dentro del rango rojo
+    // Rojo: 1-59 (degradado de rojo claro a rojo fuerte)
+    const intensity = (score - 1) / 58 // 0-1 dentro del rango rojo
     const hue = 0 // Rojo base
     const saturation = 40 + (intensity * 50) // 40-90% saturación
     const lightness = 95 - (intensity * 20) // 95-75% luminosidad
@@ -181,43 +237,32 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
     const hoursSinceUpdate = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60)
     
     // Simulate ChatGPT analysis if updated in last 24 hours and has low reputation
-    return hoursSinceUpdate < 24 && number.reputation_score < 70
+    return hoursSinceUpdate < 24 && (number.reputation_score || 0) < 70
   }
 
-  // Helper functions to get provider scores (use DB values if available, otherwise calculate)
+  // Helper functions to get provider scores (use DB values if available, otherwise return 0)
   const getNumverifyScore = (number: PhoneNumber) => {
-    // Use stored score if available, otherwise calculate
-    if (number.numverify_score !== undefined && number.numverify_score !== null) {
+    // Only return stored score if API is configured and score exists
+    if (apiCredentials.numverify.hasKey && 
+        number.numverify_score !== undefined && 
+        number.numverify_score !== null) {
       return number.numverify_score
     }
     
-    // Fallback calculation based on carrier and line type
-    let baseScore = 70
-    if (number.carrier && number.carrier !== "-") baseScore += 10
-    if (number.line_type === "mobile") baseScore += 15
-    if (number.line_type === "landline") baseScore += 5
-    if (number.line_type === "voip") baseScore -= 10
-    return Math.min(100, Math.max(0, baseScore))
+    // Return 0 if no real score available or API not configured
+    return 0
   }
 
   const getOpenAIScore = (number: PhoneNumber) => {
-    // Use stored score if available, otherwise calculate
-    if (number.openai_score !== undefined && number.openai_score !== null) {
+    // Only return stored score if API is configured and score exists
+    if (apiCredentials.openai.hasKey && 
+        number.openai_score !== undefined && 
+        number.openai_score !== null) {
       return number.openai_score
     }
     
-    // Fallback calculation based on reputation and recent analysis
-    let baseScore = number.reputation_score
-    if (hasChatGPTAnalysis(number)) {
-      // If recently analyzed by ChatGPT, use a deterministic variation based on ID
-      const idHash = number.id.split('').reduce((a, b) => {
-        a = ((a << 5) - a) + b.charCodeAt(0)
-        return a & a
-      }, 0)
-      const variation = (Math.abs(idHash) % 20) - 10 // -10 to +10 variation
-      baseScore = Math.max(0, Math.min(100, baseScore + variation))
-    }
-    return Math.round(baseScore)
+    // Return 0 if no real score available or API not configured
+    return 0
   }
 
   const getAverageScore = (number: PhoneNumber) => {
@@ -226,15 +271,64 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
       return number.average_reputation_score
     }
     
-    // Fallback calculation
-    const numverify = getNumverifyScore(number)
-    const openai = getOpenAIScore(number)
-    const base = number.reputation_score
-    return Math.round((numverify + openai + base) / 3)
+    // Only use real scores from APIs that are configured
+    const scores: number[] = []
+    
+    // Add base reputation score if available
+    if (number.reputation_score !== null && number.reputation_score !== undefined && number.reputation_score > 0) {
+      scores.push(number.reputation_score)
+    }
+    
+    // Add Numverify score only if API is configured and score exists
+    if (apiCredentials.numverify.hasKey && 
+        number.numverify_score !== null && 
+        number.numverify_score !== undefined && 
+        number.numverify_score > 0) {
+      scores.push(number.numverify_score)
+    }
+    
+    // Add OpenAI score only if API is configured and score exists
+    if (apiCredentials.openai.hasKey && 
+        number.openai_score !== null && 
+        number.openai_score !== undefined && 
+        number.openai_score > 0) {
+      scores.push(number.openai_score)
+    }
+    
+    if (scores.length === 0) {
+      // If no real scores at all, return 0 to indicate no validation
+      return 0
+    }
+    
+    return Math.round(scores.reduce((sum: number, score: number) => sum + score, 0) / scores.length)
   }
 
   // Helper function to render score with icon and tooltip
   const renderScore = (score: number, provider: string, icon: React.ReactNode, tooltip: string) => {
+    if (score === 0) {
+      return (
+        <div className="flex items-center space-x-1">
+          {icon}
+          <span className="font-semibold text-muted-foreground">
+            -
+          </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <Info className="h-3 w-3 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="max-w-xs">
+                  <p className="font-medium mb-1">{provider} Score</p>
+                  <p className="text-sm">No score available. Validate with APIs to get a score.</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      )
+    }
+    
     return (
       <div className="flex items-center space-x-1">
         {icon}
@@ -311,6 +405,7 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
     const spamReports = number.spam_reports
     const lastChecked = new Date(number.last_checked || number.updated_at)
     const daysSinceCheck = (Date.now() - lastChecked.getTime()) / (1000 * 60 * 60 * 24)
+    
     
     // High spam reports + low score = burn
     if (spamReports >= 5 && averageScore < 30) {
@@ -476,6 +571,54 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
     }
   }
 
+  const handleMarkAsSpam = async (phoneNumberId: string, reason: string) => {
+    try {
+      const response = await fetch('/api/spam-context', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'mark_spam',
+          phoneNumberId,
+          reason,
+          context: {
+            marked_by: 'user',
+            marked_at: new Date().toISOString()
+          }
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to mark as spam')
+      }
+
+      // Refresh the number data
+      const { data: updatedNumber, error } = await supabase
+        .from('phone_numbers')
+        .select('*')
+        .eq('id', phoneNumberId)
+        .single()
+
+      if (error) {
+        console.error('Error fetching updated number:', error)
+        return
+      }
+
+      // Update local state
+      setLocalNumbers(prev => 
+        prev.map(n => n.id === phoneNumberId ? updatedNumber : n)
+      )
+
+      // Update selected number if it's the same
+      if (selectedNumber?.id === phoneNumberId) {
+        setSelectedNumber(updatedNumber)
+      }
+    } catch (error) {
+      console.error('Error marking as spam:', error)
+    }
+  }
+
   // Check if there are no numbers at all (not just filtered)
   if (localNumbers.length === 0) {
     return (
@@ -521,7 +664,7 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                     </Badge>
                   </CardTitle>
                   <RealtimeStatus 
-                    status={status} 
+                    status={realtimeStatus} 
                     lastUpdate={lastUpdate} 
                     onRefresh={refresh}
                   />
@@ -538,7 +681,7 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                 {/* Status Filter */}
                 <select 
                   value={filters.status} 
-                  onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                  onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as 'all' | 'active' | 'inactive' | 'blocked' | 'spam' | 'deprecated' }))}
                   className="px-3 py-1 text-sm border rounded-md bg-background"
                 >
                   <option value="all">Todos los estados</option>
@@ -629,6 +772,12 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                 <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="text-muted-foreground w-12">
+                      <UICheckbox
+                        checked={isAllSelected}
+                        onCheckedChange={onSelectAll}
+                      />
+                    </TableHead>
                     <TableHead className="text-muted-foreground w-20">🏆</TableHead>
                     <TableHead 
                       className="text-muted-foreground cursor-pointer hover:text-primary"
@@ -743,6 +892,7 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                       </TableHead>
                     <TableHead className="text-muted-foreground">Rec</TableHead>
                     <TableHead className="text-muted-foreground">Act</TableHead>
+                    <TableHead className="text-muted-foreground w-12">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -760,16 +910,25 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                           : `color-mix(in srgb, ${getRowBackgroundColor(getAverageScore(number))}, transparent 60%)`
                       }}
                     >
+                      {/* Checkbox for selection */}
+                      <TableCell className="text-center">
+                        <UICheckbox
+                          checked={selectedNumbers.has(number.id)}
+                          onCheckedChange={(checked) => handleSelectNumber(number.id, checked as boolean)}
+                        />
+                      </TableCell>
                       {/* Position Number with Medal Emoji (based on specific score ranges) */}
                       <TableCell className="text-center font-bold">
                         <div className={`inline-flex items-center justify-center w-10 h-8 rounded-full text-sm font-bold ${
+                          getAverageScore(number) === 0 ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' :
                           getAverageScore(number) >= 90 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
                           getAverageScore(number) >= 86 ? 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200' :
                           getAverageScore(number) >= 80 ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' :
                           'bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
                         }`}>
                           <span className="mr-1">
-                            {getAverageScore(number) >= 90 ? '🥇' : // Oro: 90-100
+                            {getAverageScore(number) === 0 ? '❓' : // Sin validar
+                             getAverageScore(number) >= 90 ? '🥇' : // Oro: 90-100
                              getAverageScore(number) >= 86 ? '🥈' : // Plata: 86-89
                              getAverageScore(number) >= 80 ? '🥉' : // Bronce: 80-85
                              ''} {/* Sin medalla: <80 */}
@@ -910,6 +1069,14 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                               Block Number
                             </DropdownMenuItem>
                             <DropdownMenuItem
+                              onClick={() => handleMarkAsSpam(number.id, "Marcado manualmente como spam")}
+                              disabled={number.status === "spam" || loading === number.id}
+                              className="text-red-600"
+                            >
+                              <Flag className="mr-2 h-4 w-4" />
+                              Marcar como Spam
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
                               onClick={() => handleDeprecate(number.id)}
                               disabled={number.status === "deprecated" || loading === number.id}
                               className="text-orange-600"
@@ -949,6 +1116,35 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
+                      </TableCell>
+                      {/* Individual delete button */}
+                      <TableCell className="text-center">
+                        {onDeleteNumber && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Phone Number</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete the phone number <strong>{number.number}</strong>? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => onDeleteNumber(number.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1004,7 +1200,9 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                       </div>
                       <div className="p-2 bg-background rounded border">
                         <p className="text-xs text-muted-foreground">Average</p>
-                        <p className="text-sm font-bold text-blue-600">{getAverageScore(selectedNumber)}</p>
+                        <p className="text-sm font-bold text-blue-600">
+                          {getAverageScore(selectedNumber)}
+                        </p>
                       </div>
                     </div>
                     
@@ -1036,12 +1234,29 @@ export function NumbersTable({ numbers }: NumbersTableProps) {
                   </div>
                 </div>
                 
-                <SpamValidationPanel
-                  phoneNumberId={selectedNumber.id}
-                  currentReputation={getAverageScore(selectedNumber)}
-                  currentStatus={selectedNumber.status}
-                  onValidationComplete={handleValidationComplete}
-                />
+                {selectedNumber.status === 'spam' ? (
+                  <SpamContextPanel
+                    phoneNumberId={selectedNumber.id}
+                    currentStatus={selectedNumber.status}
+                    onStatusChange={(newStatus) => {
+                      setLocalNumbers(prev => 
+                        prev.map(n => 
+                          n.id === selectedNumber.id 
+                            ? { ...n, status: newStatus as any }
+                            : n
+                        )
+                      )
+                      setSelectedNumber(prev => prev ? { ...prev, status: newStatus as any } : null)
+                    }}
+                  />
+                ) : (
+                  <SpamValidationPanel
+                    phoneNumberId={selectedNumber.id}
+                    currentReputation={getAverageScore(selectedNumber)}
+                    currentStatus={selectedNumber.status}
+                    onValidationComplete={handleValidationComplete}
+                  />
+                )}
               </CardContent>
             </Card>
           </div>

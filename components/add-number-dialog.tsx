@@ -68,7 +68,7 @@ export function AddNumberDialog({ children }: AddNumberDialogProps) {
         number: formData.number.trim(),
         provider: formData.provider,
         status: "active",
-        reputation_score: 100,
+        reputation_score: null,
         user_id: user.id,
       })
 

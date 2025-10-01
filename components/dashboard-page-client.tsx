@@ -11,6 +11,8 @@ import { PageTutorial } from "@/components/tutorial/page-tutorial"
 import { useTutorialContext } from "@/components/tutorial/tutorial-provider"
 import { usePhoneNumbersRealtime, useCallsRealtime } from "@/hooks/use-realtime-updates"
 import { RealtimeStatus } from "@/components/realtime-status"
+import { CostCalculatorClient } from "@/components/cost-calculator-client"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface DashboardPageClientProps {
   user: any
@@ -73,20 +75,41 @@ export function DashboardPageClient({ user, stats, phoneNumbers, recentCalls, we
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <DashboardStats stats={stats} />
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="cost-calculator">Cost Calculator</TabsTrigger>
+          </TabsList>
 
-        {/* Charts Section */}
-        <div className="grid gap-6 md:grid-cols-2 mb-8">
-          <ReputationChart phoneNumbers={phoneNumbers} />
-          <CallsChart calls={weekCalls} />
-        </div>
+          <TabsContent value="overview" className="space-y-6">
+            {/* Stats Grid */}
+            <DashboardStats stats={stats} />
 
-        {/* Activity and Alerts */}
-        <div className="grid gap-6 md:grid-cols-2">
-          <RecentActivity calls={recentCalls} />
-          <SystemAlerts phoneNumbers={phoneNumbers} stats={stats} />
-        </div>
+            {/* Charts Section */}
+            <div className="grid gap-6 md:grid-cols-2 mb-8">
+              <ReputationChart phoneNumbers={phoneNumbers} />
+              <CallsChart calls={weekCalls} />
+            </div>
+
+            {/* Activity and Alerts */}
+            <div className="grid gap-6 md:grid-cols-2">
+              <RecentActivity calls={recentCalls} />
+              <SystemAlerts phoneNumbers={phoneNumbers} stats={stats} />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="cost-calculator" className="space-y-6">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                Calculadora de Costes de APIs
+              </h2>
+              <p className="text-muted-foreground">
+                Calcula los costes estimados de las APIs utilizadas para validación de spam y rotación de números
+              </p>
+            </div>
+            <CostCalculatorClient />
+          </TabsContent>
+        </Tabs>
       </main>
 
       <PageTutorial

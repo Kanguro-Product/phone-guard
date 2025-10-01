@@ -88,7 +88,7 @@ export function useRealtimeUpdates({
     isConnected,
     lastUpdate,
     refresh,
-    status: isConnected ? 'realtime' : 'polling'
+    status: (isConnected ? 'realtime' : 'polling') as 'realtime' | 'polling' | 'disconnected'
   }
 }
 
