@@ -17,6 +17,8 @@ import { SpamContextPanel } from "./spam-context-panel"
 import { BulkValidationDialog } from "./bulk-validation-dialog"
 import { usePhoneNumbersRealtime } from "@/hooks/use-realtime-updates"
 import { RealtimeStatus } from "./realtime-status"
+import { formatDistanceToNow } from "date-fns"
+import { es } from "date-fns/locale"
 
 interface PhoneNumber {
   id: string
@@ -33,6 +35,7 @@ interface PhoneNumber {
   created_at: string
   updated_at: string
   last_checked?: string
+  last_reviewed_at?: string
   carrier?: string
   line_type?: string
   country_code?: string
@@ -403,8 +406,8 @@ export function NumbersTable({
   const getRecommendation = (number: PhoneNumber) => {
     const averageScore = getAverageScore(number)
     const spamReports = number.spam_reports
-    const lastChecked = new Date(number.last_checked || number.updated_at)
-    const daysSinceCheck = (Date.now() - lastChecked.getTime()) / (1000 * 60 * 60 * 24)
+    const lastReviewed = new Date(number.last_reviewed_at || number.updated_at)
+    const daysSinceReview = (Date.now() - lastReviewed.getTime()) / (1000 * 60 * 60 * 24)
     
     
     // High spam reports + low score = burn
@@ -412,13 +415,13 @@ export function NumbersTable({
       return { type: 'burn', label: '🔥 Quemar', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' }
     }
     
-    // Low score + recent check = rest
-    if (averageScore < 50 && daysSinceCheck < 7) {
+    // Low score + recent review = rest
+    if (averageScore < 50 && daysSinceReview < 7) {
       return { type: 'rest', label: '😴 Reposar 7 días', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' }
     }
     
-    // Medium score + old check = retry
-    if (averageScore >= 50 && averageScore < 70 && daysSinceCheck > 14) {
+    // Medium score + old review = retry
+    if (averageScore >= 50 && averageScore < 70 && daysSinceReview > 14) {
       return { type: 'retry', label: '🔄 Reintentar', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' }
     }
     
@@ -892,6 +895,7 @@ export function NumbersTable({
                       </TableHead>
                     <TableHead className="text-muted-foreground">Rec</TableHead>
                     <TableHead className="text-muted-foreground">Act</TableHead>
+                    <TableHead className="text-muted-foreground">Última Revisión</TableHead>
                     <TableHead className="text-muted-foreground w-12">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1018,6 +1022,27 @@ export function NumbersTable({
                         <Badge className={getRecommendation(number).color}>
                           {getRecommendation(number).label}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="text-xs text-muted-foreground">
+                          {number.last_reviewed_at ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  {formatDistanceToNow(new Date(number.last_reviewed_at), { 
+                                    addSuffix: true, 
+                                    locale: es 
+                                  })}
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{new Date(number.last_reviewed_at).toLocaleString('es-ES')}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            <span className="text-muted-foreground">Nunca</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
@@ -1229,6 +1254,32 @@ export function NumbersTable({
                         <Badge className={getRecommendation(selectedNumber).color}>
                           {getRecommendation(selectedNumber).label}
                         </Badge>
+                      </div>
+                    </div>
+                    
+                    {/* Last Reviewed */}
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <div className="text-xs text-muted-foreground">
+                        Última revisión:
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {selectedNumber.last_reviewed_at ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                {formatDistanceToNow(new Date(selectedNumber.last_reviewed_at), { 
+                                  addSuffix: true, 
+                                  locale: es 
+                                })}
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{new Date(selectedNumber.last_reviewed_at).toLocaleString('es-ES')}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <span className="text-muted-foreground">Nunca</span>
+                        )}
                       </div>
                     </div>
                   </div>
