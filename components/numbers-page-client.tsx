@@ -607,10 +607,14 @@ export function NumbersPageClient({ user, initialNumbers }: NumbersPageClientPro
     console.log("🔄 Bulk action completed, refreshing data from database...")
     // Clear selection
     setSelectedNumbers(new Set())
-    // Force refresh from database
+    
+    // Force a single refresh from database
     await getNumbersForActiveTab(activeTab)
-    // Also refresh the router cache
-    router.refresh()
+    
+    // Small delay before router refresh to avoid multiple updates
+    setTimeout(() => {
+      router.refresh()
+    }, 500)
   }
 
   const handleSelectAll = () => {
