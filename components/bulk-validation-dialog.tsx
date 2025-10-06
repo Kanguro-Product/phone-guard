@@ -112,7 +112,12 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
       total: totalNumbers,
       startTime,
       estimatedEndTime: null,
-      currentNumber: ""
+      currentNumber: "",
+      apiProgress: {
+        numverify: 0,
+        openai: 0,
+        hiya: 0
+      }
     })
 
     try {
@@ -206,7 +211,12 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
       total: 0,
       startTime: null,
       estimatedEndTime: null,
-      currentNumber: ""
+      currentNumber: "",
+      apiProgress: {
+        numverify: 0,
+        openai: 0,
+        hiya: 0
+      }
     })
   }
 
@@ -366,7 +376,7 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
               </div>
               
               {/* API Progress Breakdown */}
-              {selectedAPIs.numverify && (
+              {selectedAPIs.numverify && progress.apiProgress && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center space-x-2">
@@ -374,14 +384,14 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
                       <span className="font-medium">Numverify</span>
                     </div>
                     <span className="text-xs text-muted-foreground font-mono">
-                      {progress.apiProgress.numverify} checkeados
+                      {progress.apiProgress?.numverify || 0} checkeados
                     </span>
                   </div>
-                  <Progress value={(progress.apiProgress.numverify / Math.max(progress.current, 1)) * 100} className="h-2" />
+                  <Progress value={((progress.apiProgress?.numverify || 0) / Math.max(progress.current, 1)) * 100} className="h-2" />
                 </div>
               )}
               
-              {selectedAPIs.openai && (
+              {selectedAPIs.openai && progress.apiProgress && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center space-x-2">
@@ -389,14 +399,14 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
                       <span className="font-medium">OpenAI ChatGPT</span>
                     </div>
                     <span className="text-xs text-muted-foreground font-mono">
-                      {progress.apiProgress.openai} checkeados
+                      {progress.apiProgress?.openai || 0} checkeados
                     </span>
                   </div>
-                  <Progress value={(progress.apiProgress.openai / Math.max(progress.current, 1)) * 100} className="h-2 bg-purple-100" />
+                  <Progress value={((progress.apiProgress?.openai || 0) / Math.max(progress.current, 1)) * 100} className="h-2 bg-purple-100" />
                 </div>
               )}
               
-              {selectedAPIs.hiya && (
+              {selectedAPIs.hiya && progress.apiProgress && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center space-x-2">
@@ -404,10 +414,10 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
                       <span className="font-medium">Hiya</span>
                     </div>
                     <span className="text-xs text-muted-foreground font-mono">
-                      {progress.apiProgress.hiya} checkeados
+                      {progress.apiProgress?.hiya || 0} checkeados
                     </span>
                   </div>
-                  <Progress value={(progress.apiProgress.hiya / Math.max(progress.current, 1)) * 100} className="h-2 bg-blue-100" />
+                  <Progress value={((progress.apiProgress?.hiya || 0) / Math.max(progress.current, 1)) * 100} className="h-2 bg-blue-100" />
                 </div>
               )}
               
