@@ -51,7 +51,12 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
     total: 0,
     startTime: null as Date | null,
     estimatedEndTime: null as Date | null,
-    currentNumber: ""
+    currentNumber: "",
+    apiProgress: {
+      numverify: 0,
+      openai: 0,
+      hiya: 0
+    }
   })
 
   // Function to check API credentials
@@ -139,7 +144,24 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
         estimatedEndTime: new Date()
       }))
 
-      onComplete?.()
+      // Auto-close after 3 seconds and trigger refresh
+      setTimeout(() => {
+        setOpen(false)
+        onComplete?.()
+        // Reset state
+        setTimeout(() => {
+          setResults(null)
+          setError(null)
+          setProgress({
+            current: 0,
+            total: 0,
+            startTime: null,
+            estimatedEndTime: null,
+            currentNumber: "",
+            apiProgress: { numverify: 0, openai: 0, hiya: 0 }
+          })
+        }, 300)
+      }, 3000)
     } catch (err) {
       console.error("[v0] Bulk validation error:", err)
       setError(err instanceof Error ? err.message : "Unknown error occurred")
@@ -318,37 +340,88 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
 
           {/* Loading State with Real-time Progress */}
           {isValidating && (
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                <span>Validating phone numbers...</span>
+            <div className="space-y-6">
+              <div className="flex items-center justify-center space-x-2 text-sm font-medium">
+                <RefreshCw className="h-5 w-5 animate-spin text-blue-500" />
+                <span>Validando números telefónicos...</span>
               </div>
               
-              {/* Progress Bar */}
-              <div className="space-y-2">
+              {/* Main Progress Bar */}
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm font-medium">
+                  <span>Progreso Total</span>
+                  <span className="text-blue-600 font-bold">
+                    {progress.current} / {progress.total}
+                  </span>
+                </div>
                 <Progress 
                   value={progress.total > 0 ? (progress.current / progress.total) * 100 : 0} 
-                  className="w-full" 
+                  className="w-full h-3" 
                 />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{progress.current} de {progress.total} números</span>
-                  <span>
+                <div className="flex justify-end text-xs text-muted-foreground">
+                  <span className="font-bold text-lg">
                     {progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0}%
                   </span>
                 </div>
               </div>
               
+              {/* API Progress Breakdown */}
+              {selectedAPIs.numverify && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <span className="font-medium">Numverify</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground font-mono">
+                      {progress.apiProgress.numverify} checkeados
+                    </span>
+                  </div>
+                  <Progress value={(progress.apiProgress.numverify / Math.max(progress.current, 1)) * 100} className="h-2" />
+                </div>
+              )}
+              
+              {selectedAPIs.openai && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-2">
+                      <Bot className="h-4 w-4 text-purple-500" />
+                      <span className="font-medium">OpenAI ChatGPT</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground font-mono">
+                      {progress.apiProgress.openai} checkeados
+                    </span>
+                  </div>
+                  <Progress value={(progress.apiProgress.openai / Math.max(progress.current, 1)) * 100} className="h-2 bg-purple-100" />
+                </div>
+              )}
+              
+              {selectedAPIs.hiya && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-2">
+                      <Shield className="h-4 w-4 text-blue-500" />
+                      <span className="font-medium">Hiya</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground font-mono">
+                      {progress.apiProgress.hiya} checkeados
+                    </span>
+                  </div>
+                  <Progress value={(progress.apiProgress.hiya / Math.max(progress.current, 1)) * 100} className="h-2 bg-blue-100" />
+                </div>
+              )}
+              
               {/* Time Estimation */}
               {progress.startTime && progress.current > 0 && (
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <div className="flex items-center space-x-1">
-                    <Clock className="h-3 w-3" />
-                    <span>Tiempo transcurrido: {Math.round((Date.now() - progress.startTime.getTime()) / 1000)}s</span>
+                <div className="flex items-center justify-between text-xs text-muted-foreground bg-muted p-3 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <Clock className="h-4 w-4" />
+                    <span className="font-medium">Transcurrido: {Math.round((Date.now() - progress.startTime.getTime()) / 1000)}s</span>
                   </div>
                   {getEstimatedTimeRemaining() && (
-                    <div className="flex items-center space-x-1">
-                      <Timer className="h-3 w-3" />
-                      <span>Termina en: {formatTimeRemaining(getEstimatedTimeRemaining()!)}</span>
+                    <div className="flex items-center space-x-2">
+                      <Timer className="h-4 w-4" />
+                      <span className="font-medium">Resta: {formatTimeRemaining(getEstimatedTimeRemaining()!)}</span>
                     </div>
                   )}
                 </div>
@@ -356,8 +429,8 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
               
               {/* Current Number */}
               {progress.currentNumber && (
-                <div className="text-xs text-muted-foreground text-center">
-                  Procesando: {progress.currentNumber}
+                <div className="text-xs text-center p-2 bg-blue-50 dark:bg-blue-950 rounded font-mono">
+                  Procesando: <span className="font-bold">{progress.currentNumber}</span>
                 </div>
               )}
             </div>
@@ -374,30 +447,35 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
           {/* Results */}
           {results && (
             <div className="space-y-4">
-              <Alert variant={results.spamDetected > 0 ? "destructive" : "default"}>
-                {results.spamDetected > 0 ? <ShieldAlert className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+              <Alert className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
+                <CheckCircle className="h-5 w-5 text-green-600" />
                 <AlertDescription>
-                  <div className="font-medium mb-1">Validation Complete</div>
-                  <div className="text-sm">
+                  <div className="font-bold text-lg mb-1 text-green-900 dark:text-green-100">✅ Validación Completada</div>
+                  <div className="text-sm text-green-800 dark:text-green-200">
                     {results.message}
                     {results.spamDetected > 0 && (
-                      <span className="text-red-600 font-medium"> • {results.spamDetected} SPAM numbers detected</span>
+                      <div className="mt-2 p-2 bg-red-100 dark:bg-red-900 rounded">
+                        <span className="text-red-700 dark:text-red-200 font-bold">⚠️ {results.spamDetected} números SPAM detectados</span>
+                      </div>
                     )}
+                  </div>
+                  <div className="mt-3 text-xs text-muted-foreground">
+                    El diálogo se cerrará automáticamente en 3 segundos...
                   </div>
                 </AlertDescription>
               </Alert>
 
               {/* Results Summary */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 bg-muted rounded-lg text-center">
-                  <div className="text-2xl font-bold text-green-600">
+                <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 rounded-lg text-center border-2 border-green-200 dark:border-green-800">
+                  <div className="text-3xl font-bold text-green-600 dark:text-green-400">
                     {results.results.filter((r: any) => r.success && !r.isSpam).length}
                   </div>
-                  <div className="text-sm text-muted-foreground">Clean Numbers</div>
+                  <div className="text-sm font-medium text-green-700 dark:text-green-300">Números Limpios</div>
                 </div>
-                <div className="p-3 bg-muted rounded-lg text-center">
-                  <div className="text-2xl font-bold text-red-600">{results.spamDetected}</div>
-                  <div className="text-sm text-muted-foreground">SPAM Detected</div>
+                <div className="p-4 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950 dark:to-red-900 rounded-lg text-center border-2 border-red-200 dark:border-red-800">
+                  <div className="text-3xl font-bold text-red-600 dark:text-red-400">{results.spamDetected}</div>
+                  <div className="text-sm font-medium text-red-700 dark:text-red-300">SPAM Detectado</div>
                 </div>
               </div>
 
