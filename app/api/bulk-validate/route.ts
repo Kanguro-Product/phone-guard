@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { spamValidator } from "@/lib/spam-validation"
+import { HiyaApiProvider, NumverifyApiProvider, ChatGPTProvider, SpamValidationService } from "@/lib/spam-validation"
+import { getIntegrationCredentials } from "@/lib/utils"
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,6 +22,41 @@ export async function POST(request: NextRequest) {
     const apisToUse = selectedAPIs || { numverify: true, openai: true, hiya: true }
 
     console.log(`[v0] Starting bulk SPAM validation for user: ${user.id}`)
+    
+    // Load API credentials for this user
+    const hiya = await getIntegrationCredentials(supabase, user.id, "hiya")
+    const numverify = await getIntegrationCredentials(supabase, user.id, "numverify")
+    const chatgpt = await getIntegrationCredentials(supabase, user.id, "openai")
+    
+    console.log("🔑 [Bulk] API Credentials loaded:", {
+      hiya: hiya?.api_key ? "✅ Configured" : "❌ Not configured",
+      numverify: numverify?.api_key ? "✅ Configured" : "❌ Not configured",
+      openai: chatgpt?.api_key ? "✅ Configured" : "❌ Not configured",
+      selectedAPIs: apisToUse
+    })
+    
+    // Build providers array
+    const providers = [] as any[]
+    
+    if (apisToUse.hiya && hiya?.api_key) {
+      console.log("➕ [Bulk] Adding Hiya provider")
+      providers.push(new HiyaApiProvider(hiya.api_key, hiya.api_secret))
+    }
+    if (apisToUse.numverify && numverify?.api_key) {
+      console.log("➕ [Bulk] Adding Numverify provider")
+      providers.push(new NumverifyApiProvider(numverify.api_key))
+    }
+    if (apisToUse.openai && chatgpt?.api_key) {
+      console.log("➕ [Bulk] Adding OpenAI provider")
+      providers.push(new ChatGPTProvider(chatgpt.api_key))
+    }
+    
+    console.log(`📊 [Bulk] Total providers configured: ${providers.length}`)
+    
+    // Create validator with user's providers
+    const validator = providers.length > 0 
+      ? new SpamValidationService(providers)
+      : new SpamValidationService() // Fallback to mock
 
     // Get all active phone numbers for the user
     const { data: phoneNumbers, error: phoneError } = await supabase
@@ -54,7 +90,7 @@ export async function POST(request: NextRequest) {
         try {
           console.log(`[v0] Validating number: ${phoneNumber.number}`)
 
-          const validationResult = await spamValidator.validateNumber(phoneNumber.number, apisToUse)
+          const validationResult = await validator.validateNumber(phoneNumber.number, apisToUse)
 
           // Update phone number reputation
           const newReputationScore = Math.max(0, Math.min(100, validationResult.overallResult.details.reputation))

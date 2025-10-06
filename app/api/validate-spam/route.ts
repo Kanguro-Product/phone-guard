@@ -43,20 +43,33 @@ export async function POST(request: NextRequest) {
     const hiya = await getIntegrationCredentials(supabase, user.id, "hiya")
     const numverify = await getIntegrationCredentials(supabase, user.id, "numverify")
     const chatgpt = await getIntegrationCredentials(supabase, user.id, "openai")
+    
+    console.log("🔑 API Credentials loaded:", {
+      hiya: hiya?.api_key ? "✅ Configured" : "❌ Not configured",
+      numverify: numverify?.api_key ? "✅ Configured" : "❌ Not configured",
+      openai: chatgpt?.api_key ? "✅ Configured" : "❌ Not configured",
+      selectedAPIs: apisToUse
+    })
+    
     // Load user default country for national numbers (optional future use)
     const { data: userProfile } = await supabase.from("users").select("default_country_code").eq("id", user.id).single()
     const providers = [] as any[]
     
     // Only add providers that are selected and have credentials
     if (apisToUse.hiya && hiya?.api_key) {
+      console.log("➕ Adding Hiya provider")
       providers.push(new HiyaApiProvider(hiya.api_key, hiya.api_secret))
     }
     if (apisToUse.numverify && numverify?.api_key) {
+      console.log("➕ Adding Numverify provider")
       providers.push(new NumverifyApiProvider(numverify.api_key))
     }
     if (apisToUse.openai && chatgpt?.api_key) {
+      console.log("➕ Adding OpenAI provider")
       providers.push(new ChatGPTProvider(chatgpt.api_key))
     }
+    
+    console.log(`📊 Total providers configured: ${providers.length}`)
     
     // Use mock providers if no real APIs are configured
     let validator
