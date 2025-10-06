@@ -73,6 +73,8 @@ export function NumbersTable({
   onActionComplete,
   user
 }: NumbersTableProps) {
+  
+  
   const [loading, setLoading] = useState<string | null>(null)
   const [selectedNumber, setSelectedNumber] = useState<PhoneNumber | null>(null)
   const [highlightSet, setHighlightSet] = useState<Set<string>>(new Set())
@@ -321,9 +323,9 @@ export function NumbersTable({
   }
 
   // Helper function to get background color based on score with specific ranges
-  const getRowBackgroundColor = (score: number) => {
-    // Score 0 means no validation - gray background
-    if (score === 0) {
+  const getRowBackgroundColor = (score: number | null) => {
+    // Null/undefined means no validation - gray background
+    if (score === null || score === undefined || score === 0) {
       return `hsl(0, 0%, 95%)`
     }
     
@@ -393,72 +395,62 @@ export function NumbersTable({
     return hoursSinceUpdate < 24 && (number.reputation_score || 0) < 70
   }
 
-  // Helper functions to get provider scores (use DB values if available, otherwise return 0)
-  const getNumverifyScore = (number: PhoneNumber) => {
-    // Only return stored score if API is configured and score exists
-    if (apiCredentials.numverify.hasKey && 
-        number.numverify_score !== undefined && 
-        number.numverify_score !== null) {
+  // Helper functions to get provider scores (use DB values if available, otherwise return null)
+  const getNumverifyScore = (number: PhoneNumber): number | null => {
+    // Return stored score if it exists (regardless of API configuration)
+    if (number.numverify_score !== undefined && number.numverify_score !== null) {
       return number.numverify_score
     }
     
-    // Return 0 if no real score available or API not configured
-    return 0
+    // Return null if no score available
+    return null
   }
 
-  const getOpenAIScore = (number: PhoneNumber) => {
-    // Only return stored score if API is configured and score exists
-    if (apiCredentials.openai.hasKey && 
-        number.openai_score !== undefined && 
-        number.openai_score !== null) {
+  const getOpenAIScore = (number: PhoneNumber): number | null => {
+    // Return stored score if it exists (regardless of API configuration)
+    if (number.openai_score !== undefined && number.openai_score !== null) {
       return number.openai_score
     }
     
-    // Return 0 if no real score available or API not configured
-    return 0
+    // Return null if no score available
+    return null
   }
 
-  const getAverageScore = (number: PhoneNumber) => {
-    // Use stored score if available, otherwise calculate
+  const getAverageScore = (number: PhoneNumber): number | null => {
+    // Use stored average score if available
     if (number.average_reputation_score !== undefined && number.average_reputation_score !== null) {
       return number.average_reputation_score
     }
     
-    // Only use real scores from APIs that are configured
+    // Calculate average from available scores
     const scores: number[] = []
     
     // Add base reputation score if available
-    if (number.reputation_score !== null && number.reputation_score !== undefined && number.reputation_score > 0) {
+    if (number.reputation_score !== null && number.reputation_score !== undefined) {
       scores.push(number.reputation_score)
     }
     
-    // Add Numverify score only if API is configured and score exists
-    if (apiCredentials.numverify.hasKey && 
-        number.numverify_score !== null && 
-        number.numverify_score !== undefined && 
-        number.numverify_score > 0) {
+    // Add Numverify score if exists
+    if (number.numverify_score !== null && number.numverify_score !== undefined) {
       scores.push(number.numverify_score)
     }
     
-    // Add OpenAI score only if API is configured and score exists
-    if (apiCredentials.openai.hasKey && 
-        number.openai_score !== null && 
-        number.openai_score !== undefined && 
-        number.openai_score > 0) {
+    // Add OpenAI score if exists
+    if (number.openai_score !== null && number.openai_score !== undefined) {
       scores.push(number.openai_score)
     }
     
     if (scores.length === 0) {
-      // If no real scores at all, return 0 to indicate no validation
-      return 0
+      // If no scores at all, return null
+      return null
     }
     
     return Math.round(scores.reduce((sum: number, score: number) => sum + score, 0) / scores.length)
   }
 
   // Helper function to render score with icon and tooltip
-  const renderScore = (score: number, provider: string, icon: React.ReactNode, tooltip: string) => {
-    if (score === 0) {
+  const renderScore = (score: number | null | undefined, provider: string, icon: React.ReactNode, tooltip: string) => {
+    if (score === null || score === undefined) {
       return (
         <div className="flex items-center space-x-1">
           {icon}
@@ -571,7 +563,7 @@ export function NumbersTable({
       
       // Score range filter
       const averageScore = getAverageScore(number)
-      if (filters.scoreRange !== 'all') {
+      if (filters.scoreRange !== 'all' && averageScore !== null) {
         switch (filters.scoreRange) {
           case 'excellent': if (averageScore < 90) return false; break
           case 'good': if (averageScore < 80 || averageScore >= 90) return false; break
@@ -589,7 +581,7 @@ export function NumbersTable({
 
   // Recommendation system
   const getRecommendation = (number: PhoneNumber) => {
-    const averageScore = getAverageScore(number)
+    const averageScore = getAverageScore(number) ?? 0
     const spamReports = number.spam_reports
     const lastReviewed = new Date(number.last_reviewed_at || number.updated_at)
     const daysSinceReview = (Date.now() - lastReviewed.getTime()) / (1000 * 60 * 60 * 24)
@@ -956,7 +948,15 @@ export function NumbersTable({
               </Button>
             )}
             
-            <BulkValidationDialog>
+            <BulkValidationDialog 
+              onComplete={() => {
+                console.log("🔄 Bulk validation completed, refreshing data...")
+                // Trigger action complete callback which will refresh from database
+                if (onActionComplete) {
+                  onActionComplete()
+                }
+              }}
+            >
               <Button 
                 variant="outline" 
                 size="sm"
@@ -1242,17 +1242,17 @@ export function NumbersTable({
                       {/* Position Number with Medal Emoji (based on specific score ranges) */}
                       <TableCell className="text-center font-bold">
                         <div className={`inline-flex items-center justify-center w-10 h-8 rounded-full text-sm font-bold ${
-                          getAverageScore(number) === 0 ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' :
-                          getAverageScore(number) >= 90 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                          getAverageScore(number) >= 86 ? 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200' :
-                          getAverageScore(number) >= 80 ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' :
+                          (getAverageScore(number) === null || getAverageScore(number) === undefined || getAverageScore(number) === 0) ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' :
+                          (getAverageScore(number) ?? 0) >= 90 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                          (getAverageScore(number) ?? 0) >= 86 ? 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200' :
+                          (getAverageScore(number) ?? 0) >= 80 ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' :
                           'bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
                         }`}>
                           <span className="mr-1">
-                            {getAverageScore(number) === 0 ? '❓' : // Sin validar
-                             getAverageScore(number) >= 90 ? '🥇' : // Oro: 90-100
-                             getAverageScore(number) >= 86 ? '🥈' : // Plata: 86-89
-                             getAverageScore(number) >= 80 ? '🥉' : // Bronce: 80-85
+                            {(getAverageScore(number) === null || getAverageScore(number) === undefined || getAverageScore(number) === 0) ? '❓' : // Sin validar
+                             (getAverageScore(number) ?? 0) >= 90 ? '🥇' : // Oro: 90-100
+                             (getAverageScore(number) ?? 0) >= 86 ? '🥈' : // Plata: 86-89
+                             (getAverageScore(number) ?? 0) >= 80 ? '🥉' : // Bronce: 80-85
                              ''} {/* Sin medalla: <80 */}
                           </span>
                           {index + 1}
@@ -1294,7 +1294,7 @@ export function NumbersTable({
                             {hasChatGPTAnalysis(number) ? (
                               <>
                                 <Bot className="h-4 w-4 text-purple-500" />
-                                <span className={`font-semibold ${getReputationColor(getOpenAIScore(number))}`}>
+                                <span className={`font-semibold ${getReputationColor(getOpenAIScore(number) ?? 0)}`}>
                                   {getOpenAIScore(number)}
                                 </span>
                                 <TooltipProvider>
@@ -1648,7 +1648,7 @@ export function NumbersTable({
                 ) : (
                   <SpamValidationPanel
                     phoneNumberId={selectedNumber.id}
-                    currentReputation={getAverageScore(selectedNumber)}
+                    currentReputation={getAverageScore(selectedNumber) ?? 0}
                     currentStatus={selectedNumber.status}
                     onValidationComplete={handleValidationComplete}
                   />

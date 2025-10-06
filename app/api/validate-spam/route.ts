@@ -85,24 +85,38 @@ export async function POST(request: NextRequest) {
 
     // Update phone number in database
     const enrichment = validationResult.providerResults?.find?.((p: any) => p.provider === "Numverify")?.details || {}
+    
+    console.log("📝 Enrichment data to save:", {
+      carrier: enrichment.carrier,
+      line_type: enrichment.line_type,
+      country_code: enrichment.country_code,
+      country_name: enrichment.country_name,
+      location: enrichment.location,
+      numverifyScore,
+      openaiScore
+    })
+
+    const updateData = {
+      reputation_score: newReputationScore,
+      numverify_score: numverifyScore,
+      openai_score: openaiScore,
+      average_reputation_score: averageScore,
+      status: newStatus,
+      spam_reports: newSpamReports,
+      last_checked: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      carrier: enrichment.carrier || null,
+      line_type: enrichment.line_type || null,
+      country_code: enrichment.country_code || null,
+      country_name: enrichment.country_name || null,
+      location: enrichment.location || null,
+    }
+    
+    console.log("💾 Full update data:", updateData)
 
     let { error: updateError } = await supabase
       .from("phone_numbers")
-      .update({
-        reputation_score: newReputationScore,
-        numverify_score: numverifyScore,
-        openai_score: openaiScore,
-        average_reputation_score: averageScore,
-        status: newStatus,
-        spam_reports: newSpamReports,
-        last_checked: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        carrier: enrichment.carrier || null,
-        line_type: enrichment.category || null,
-        country_code: enrichment.country_code || null,
-        country_name: enrichment.country_name || null,
-        location: enrichment.location || null,
-      })
+      .update(updateData)
       .eq("id", phoneNumberId)
 
     // Fallback for environments without enrichment columns applied yet

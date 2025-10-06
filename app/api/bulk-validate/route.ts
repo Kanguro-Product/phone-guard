@@ -58,20 +58,55 @@ export async function POST(request: NextRequest) {
 
           // Update phone number reputation
           const newReputationScore = Math.max(0, Math.min(100, validationResult.overallResult.details.reputation))
+          
+          // Extract individual provider scores
+          const numverifyResult = validationResult.providerResults?.find((p: any) => p.provider === "Numverify")
+          const openaiResult = validationResult.providerResults?.find((p: any) => p.provider === "ChatGPT")
+          
+          const numverifyScore = numverifyResult ? Math.max(0, Math.min(100, numverifyResult.details.reputation)) : null
+          const openaiScore = openaiResult ? Math.max(0, Math.min(100, openaiResult.details.reputation)) : null
+          const averageScore = numverifyScore && openaiScore ? Math.round((numverifyScore + openaiScore + newReputationScore) / 3) : null
 
           const newStatus = validationResult.overallResult.isSpam ? "spam" : phoneNumber.status
+          
+          // Extract enrichment data from Numverify
+          const enrichment = validationResult.providerResults?.find?.((p: any) => p.provider === "Numverify")?.details || {}
+          
+          console.log(`📝 [Bulk] Enrichment for ${phoneNumber.number}:`, {
+            carrier: enrichment.carrier,
+            line_type: enrichment.line_type,
+            location: enrichment.location,
+            numverifyScore,
+            openaiScore
+          })
 
-          // Update in database
-          await supabase
+          const updateData = {
+            reputation_score: newReputationScore,
+            numverify_score: numverifyScore,
+            openai_score: openaiScore,
+            average_reputation_score: averageScore,
+            status: newStatus,
+            spam_reports: validationResult.overallResult.details.reports,
+            last_checked: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            carrier: enrichment.carrier || null,
+            line_type: enrichment.line_type || null,
+            country_code: enrichment.country_code || null,
+            country_name: enrichment.country_name || null,
+            location: enrichment.location || null,
+          }
+
+          // Update in database with enrichment data
+          const { error: updateError } = await supabase
             .from("phone_numbers")
-            .update({
-              reputation_score: newReputationScore,
-              status: newStatus,
-              spam_reports: validationResult.overallResult.details.reports,
-              last_checked: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
+            .update(updateData)
             .eq("id", phoneNumber.id)
+          
+          if (updateError) {
+            console.error(`❌ [Bulk] Error updating ${phoneNumber.number}:`, updateError)
+          } else {
+            console.log(`✅ [Bulk] Successfully updated ${phoneNumber.number}`)
+          }
 
           // Log reputation change
           await supabase.from("reputation_logs").insert({

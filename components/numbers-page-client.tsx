@@ -603,12 +603,14 @@ export function NumbersPageClient({ user, initialNumbers }: NumbersPageClientPro
     handleDeleteNumbers(selectedIds)
   }
 
-  const handleBulkActionComplete = () => {
-    // Refresh the page to get updated data
-    router.refresh()
+  const handleBulkActionComplete = async () => {
+    console.log("🔄 Bulk action completed, refreshing data from database...")
+    // Clear selection
     setSelectedNumbers(new Set())
-    // Refresh the current tab numbers
-    getNumbersForActiveTab(activeTab)
+    // Force refresh from database
+    await getNumbersForActiveTab(activeTab)
+    // Also refresh the router cache
+    router.refresh()
   }
 
   const handleSelectAll = () => {
@@ -764,6 +766,7 @@ export function NumbersPageClient({ user, initialNumbers }: NumbersPageClientPro
                   onDeleteAll={handleDeleteAll}
                   isDeleting={isDeleting}
                   sourceListId={activeTab}
+                  onActionComplete={handleBulkActionComplete}
                   user={user}
                 />
               </>
