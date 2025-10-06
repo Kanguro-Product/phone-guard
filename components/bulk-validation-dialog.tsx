@@ -19,6 +19,7 @@ import {
 import { Shield, RefreshCw, CheckCircle, AlertTriangle, ShieldAlert, X, Bot, Brain, Sparkles, Clock, Timer } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { useToast } from "@/hooks/use-toast"
 
 interface BulkValidationDialogProps {
   children: React.ReactNode
@@ -30,6 +31,7 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
   const [isValidating, setIsValidating] = useState(false)
   const [results, setResults] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
+  const { toast } = useToast()
   
   // API selection state
   const [selectedAPIs, setSelectedAPIs] = useState({
@@ -120,19 +122,18 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
       }
     })
 
-    // Simulate progress updates (since backend processes in batches of 3)
-    const batchSize = 3
-    const estimatedTimePerBatch = 3000 // 3 seconds per batch (2s delay + 1s processing)
-    const totalBatches = Math.ceil(totalNumbers / batchSize)
+    // Simulate smooth progress (backend now processes ALL in parallel)
+    // Estimated time: ~5 seconds for API calls + 2 seconds for DB updates
+    const estimatedTotalTime = Math.max(7000, totalNumbers * 200) // At least 7s, or 200ms per number
+    const updateInterval = 100 // Update every 100ms for very smooth progress
     
-    // Update progress every second with smooth animation
     let elapsedTime = 0
     const progressInterval = setInterval(() => {
-      elapsedTime += 1000 // 1 second increments
+      elapsedTime += updateInterval
       
-      // Calculate estimated progress based on time
-      const estimatedCurrentBatch = Math.floor(elapsedTime / estimatedTimePerBatch)
-      const processed = Math.min(estimatedCurrentBatch * batchSize, totalNumbers)
+      // Calculate progress based on estimated time
+      const progressPercentage = Math.min((elapsedTime / estimatedTotalTime) * 100, 95) // Cap at 95% until real completion
+      const processed = Math.floor((progressPercentage / 100) * totalNumbers)
       
       setProgress(prev => ({
         ...prev,
@@ -143,7 +144,7 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
           hiya: selectedAPIs.hiya ? processed : 0
         }
       }))
-    }, 1000) // Update every second for smooth progress
+    }, updateInterval)
 
     try {
       console.log("[v0] Starting bulk SPAM validation with APIs:", selectedAPIs)
@@ -183,7 +184,12 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
       
       setResults(data)
 
-      // Wait 3 seconds showing results
+      toast({
+        title: "✅ Validación completada",
+        description: `${data.validatedCount || totalNumbers} números procesados. Actualizando...`,
+      })
+
+      // Wait 2 seconds showing 100% results, then close and refresh
       setTimeout(() => {
         console.log("✅ Validación completada, cerrando diálogo...")
         
@@ -191,7 +197,7 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
         setOpen(false)
         setIsValidating(false)
         
-        // Wait a bit for dialog to close, then trigger refresh
+        // Refresh immediately after closing
         setTimeout(() => {
           console.log("🔄 Refrescando datos desde la base de datos...")
           if (onComplete) {
@@ -211,8 +217,8 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
               apiProgress: { numverify: 0, openai: 0, hiya: 0 }
             })
           }, 500)
-        }, 300)
-      }, 3000)
+        }, 200)
+      }, 2000)
     } catch (err) {
       clearInterval(progressInterval)
       console.error("[v0] Bulk validation error:", err)

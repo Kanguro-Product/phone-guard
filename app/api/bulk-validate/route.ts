@@ -79,14 +79,9 @@ export async function POST(request: NextRequest) {
 
     console.log(`[v0] Found ${phoneNumbers.length} numbers to validate`)
 
-    const results = []
-
-    // Process numbers in batches to avoid overwhelming the APIs
-    const batchSize = 3
-    for (let i = 0; i < phoneNumbers.length; i += batchSize) {
-      const batch = phoneNumbers.slice(i, i + batchSize)
-
-        const batchPromises = batch.map(async (phoneNumber) => {
+    // Process ALL numbers in parallel for maximum speed
+    const results = await Promise.all(
+      phoneNumbers.map(async (phoneNumber) => {
         try {
           console.log(`[v0] Validating number: ${phoneNumber.number}`)
 
@@ -169,19 +164,10 @@ export async function POST(request: NextRequest) {
           return {
             phoneNumber: phoneNumber.number,
             success: false,
-            error: error instanceof Error ? error.message : "Unknown error",
-          }
+          error: error instanceof Error ? error.message : "Unknown error",
         }
       })
-
-      const batchResults = await Promise.all(batchPromises)
-      results.push(...batchResults)
-
-      // Add delay between batches to be respectful to APIs
-      if (i + batchSize < phoneNumbers.length) {
-        await new Promise((resolve) => setTimeout(resolve, 2000))
-      }
-    }
+    )
 
     const successCount = results.filter((r) => r.success).length
     const spamCount = results.filter((r) => r.success && r.isSpam).length
