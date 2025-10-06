@@ -375,50 +375,54 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
                 </div>
               </div>
               
-              {/* API Progress Breakdown */}
-              {selectedAPIs.numverify && progress.apiProgress && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center space-x-2">
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                      <span className="font-medium">Numverify</span>
+              {/* API Progress Breakdown - Only show if we have apiProgress data */}
+              {progress.apiProgress && (
+                <>
+                  {selectedAPIs.numverify && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center space-x-2">
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          <span className="font-medium">Numverify</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {progress.apiProgress.numverify || 0} checkeados
+                        </span>
+                      </div>
+                      <Progress value={((progress.apiProgress.numverify || 0) / Math.max(progress.current, 1)) * 100} className="h-2" />
                     </div>
-                    <span className="text-xs text-muted-foreground font-mono">
-                      {progress.apiProgress?.numverify || 0} checkeados
-                    </span>
-                  </div>
-                  <Progress value={((progress.apiProgress?.numverify || 0) / Math.max(progress.current, 1)) * 100} className="h-2" />
-                </div>
-              )}
-              
-              {selectedAPIs.openai && progress.apiProgress && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center space-x-2">
-                      <Bot className="h-4 w-4 text-purple-500" />
-                      <span className="font-medium">OpenAI ChatGPT</span>
+                  )}
+                  
+                  {selectedAPIs.openai && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center space-x-2">
+                          <Bot className="h-4 w-4 text-purple-500" />
+                          <span className="font-medium">OpenAI ChatGPT</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {progress.apiProgress.openai || 0} checkeados
+                        </span>
+                      </div>
+                      <Progress value={((progress.apiProgress.openai || 0) / Math.max(progress.current, 1)) * 100} className="h-2 bg-purple-100" />
                     </div>
-                    <span className="text-xs text-muted-foreground font-mono">
-                      {progress.apiProgress?.openai || 0} checkeados
-                    </span>
-                  </div>
-                  <Progress value={((progress.apiProgress?.openai || 0) / Math.max(progress.current, 1)) * 100} className="h-2 bg-purple-100" />
-                </div>
-              )}
-              
-              {selectedAPIs.hiya && progress.apiProgress && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center space-x-2">
-                      <Shield className="h-4 w-4 text-blue-500" />
-                      <span className="font-medium">Hiya</span>
+                  )}
+                  
+                  {selectedAPIs.hiya && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center space-x-2">
+                          <Shield className="h-4 w-4 text-blue-500" />
+                          <span className="font-medium">Hiya</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {progress.apiProgress.hiya || 0} checkeados
+                        </span>
+                      </div>
+                      <Progress value={((progress.apiProgress.hiya || 0) / Math.max(progress.current, 1)) * 100} className="h-2 bg-blue-100" />
                     </div>
-                    <span className="text-xs text-muted-foreground font-mono">
-                      {progress.apiProgress?.hiya || 0} checkeados
-                    </span>
-                  </div>
-                  <Progress value={((progress.apiProgress?.hiya || 0) / Math.max(progress.current, 1)) * 100} className="h-2 bg-blue-100" />
-                </div>
+                  )}
+                </>
               )}
               
               {/* Time Estimation */}
