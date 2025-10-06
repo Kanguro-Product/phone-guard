@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox as UICheckbox } from "@/components/ui/checkbox"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -44,6 +45,17 @@ interface PhoneNumber {
   location?: string
 }
 
+interface NumberList {
+  id: string
+  name: string
+  description?: string
+  color?: string
+  icon?: string
+  is_system_list?: boolean
+  list_type?: string
+  count?: number
+}
+
 interface NumbersTableProps {
   numbers: PhoneNumber[]
   selectedNumbers?: Set<string>
@@ -57,6 +69,12 @@ interface NumbersTableProps {
   sourceListId?: string
   onActionComplete?: () => void
   user?: { id: string }
+  numberLists?: NumberList[]
+  activeTab?: string
+  onTabChange?: (tabId: string) => void
+  getListIcon?: (list: NumberList) => React.ReactNode
+  formatNumber?: (num: number) => string
+  isLoadingNumbers?: boolean
 }
 
 export function NumbersTable({ 
@@ -71,7 +89,13 @@ export function NumbersTable({
   isDeleting = false,
   sourceListId,
   onActionComplete,
-  user
+  user,
+  numberLists = [],
+  activeTab,
+  onTabChange,
+  getListIcon,
+  formatNumber,
+  isLoadingNumbers = false
 }: NumbersTableProps) {
   const [loading, setLoading] = useState<string | null>(null)
   const [selectedNumber, setSelectedNumber] = useState<PhoneNumber | null>(null)
@@ -128,143 +152,11 @@ export function NumbersTable({
     status: 'all' as 'all' | 'active' | 'inactive' | 'blocked' | 'spam' | 'deprecated',
     provider: 'all' as string,
     scoreRange: 'all' as string,
-    showSpamOnly: false,
-    country: 'all' as string
+    showSpamOnly: false
   })
   
   // Hook para actualizaciones en real-time
   const { isConnected, lastUpdate, refresh, status: realtimeStatus } = usePhoneNumbersRealtime()
-  
-  // Function to get country flag emoji from phone number prefix
-  const getCountryFlag = (phoneNumber: string, countryCode?: string | null): string => {
-    // If we have a country code, use it first
-    if (countryCode) {
-      const codePoints = countryCode
-        .toUpperCase()
-        .split('')
-        .map(char => 127397 + char.charCodeAt(0))
-      return String.fromCodePoint(...codePoints)
-    }
-    
-    // Extract prefix from phone number
-    const cleanNumber = phoneNumber.replace(/\s+/g, '').replace(/[^\d+]/g, '')
-    
-    // Country prefix mapping
-    const countryPrefixes: { [key: string]: string } = {
-      '+34': '🇪🇸', // España
-      '+33': '🇫🇷', // Francia
-      '+39': '🇮🇹', // Italia
-      '+49': '🇩🇪', // Alemania
-      '+351': '🇵🇹', // Portugal
-      '+44': '🇬🇧', // Reino Unido
-      '+353': '🇮🇪', // Irlanda
-      '+32': '🇧🇪', // Bélgica
-      '+31': '🇳🇱', // Países Bajos
-      '+41': '🇨🇭', // Suiza
-      '+43': '🇦🇹', // Austria
-      '+45': '🇩🇰', // Dinamarca
-      '+46': '🇸🇪', // Suecia
-      '+47': '🇳🇴', // Noruega
-      '+358': '🇫🇮', // Finlandia
-      '+48': '🇵🇱', // Polonia
-      '+420': '🇨🇿', // República Checa
-      '+421': '🇸🇰', // Eslovaquia
-      '+36': '🇭🇺', // Hungría
-      '+40': '🇷🇴', // Rumanía
-      '+359': '🇧🇬', // Bulgaria
-      '+30': '🇬🇷', // Grecia
-      '+90': '🇹🇷', // Turquía
-      '+1': '🇺🇸', // Estados Unidos (también Canadá, República Dominicana, Puerto Rico)
-      '+52': '🇲🇽', // México
-      '+55': '🇧🇷', // Brasil
-      '+54': '🇦🇷', // Argentina
-      '+56': '🇨🇱', // Chile
-      '+57': '🇨🇴', // Colombia
-      '+51': '🇵🇪', // Perú
-      '+598': '🇺🇾', // Uruguay
-      '+595': '🇵🇾', // Paraguay
-      '+593': '🇪🇨', // Ecuador
-      '+58': '🇻🇪', // Venezuela
-      '+591': '🇧🇴', // Bolivia
-      '+506': '🇨🇷', // Costa Rica
-      '+507': '🇵🇦', // Panamá
-      '+53': '🇨🇺', // Cuba
-      '+504': '🇭🇳', // Honduras
-      '+503': '🇸🇻', // El Salvador
-      '+502': '🇬🇹', // Guatemala
-      '+505': '🇳🇮', // Nicaragua
-      '+82': '🇰🇷', // Corea del Sur
-      '+81': '🇯🇵', // Japón
-      '+86': '🇨🇳', // China
-      '+852': '🇭🇰', // Hong Kong
-      '+886': '🇹🇼', // Taiwán
-      '+91': '🇮🇳', // India
-      '+62': '🇮🇩', // Indonesia
-      '+66': '🇹🇭', // Tailandia
-      '+63': '🇵🇭', // Filipinas
-      '+84': '🇻🇳', // Vietnam
-      '+60': '🇲🇾', // Malasia
-      '+65': '🇸🇬', // Singapur
-      '+61': '🇦🇺', // Australia
-      '+64': '🇳🇿', // Nueva Zelanda
-      '+27': '🇿🇦', // Sudáfrica
-      '+20': '🇪🇬', // Egipto
-      '+212': '🇲🇦', // Marruecos
-      '+213': '🇩🇿', // Argelia
-      '+234': '🇳🇬', // Nigeria
-      '+254': '🇰🇪', // Kenia
-      '+221': '🇸🇳', // Senegal
-    }
-    
-    // Check for exact prefix matches (longest first)
-    const sortedPrefixes = Object.keys(countryPrefixes).sort((a, b) => b.length - a.length)
-    
-    for (const prefix of sortedPrefixes) {
-      if (cleanNumber.startsWith(prefix)) {
-        return countryPrefixes[prefix]
-      }
-    }
-    
-    return '🌍' // Default world flag for unknown countries
-  }
-  
-  // Get unique countries from numbers for filter
-  const getUniqueCountries = () => {
-    const countries = new Set<string>()
-    localNumbers.forEach(number => {
-      // First try to use country_code if available
-      if (number.country_code) {
-        countries.add(number.country_code)
-      } else {
-        // Extract country from phone number prefix
-        const cleanNumber = number.number.replace(/\s+/g, '').replace(/[^\d+]/g, '')
-        const countryPrefixes: { [key: string]: string } = {
-          '+34': 'ES', '+33': 'FR', '+39': 'IT', '+49': 'DE', '+351': 'PT',
-          '+44': 'GB', '+353': 'IE', '+32': 'BE', '+31': 'NL', '+41': 'CH',
-          '+43': 'AT', '+45': 'DK', '+46': 'SE', '+47': 'NO', '+358': 'FI',
-          '+48': 'PL', '+420': 'CZ', '+421': 'SK', '+36': 'HU', '+40': 'RO',
-          '+359': 'BG', '+30': 'GR', '+90': 'TR', '+1': 'US', '+52': 'MX',
-          '+55': 'BR', '+54': 'AR', '+56': 'CL', '+57': 'CO', '+51': 'PE',
-          '+598': 'UY', '+595': 'PY', '+593': 'EC', '+58': 'VE', '+591': 'BO',
-          '+506': 'CR', '+507': 'PA', '+53': 'CU', '+504': 'HN', '+503': 'SV',
-          '+502': 'GT', '+505': 'NI', '+82': 'KR', '+81': 'JP', '+86': 'CN',
-          '+852': 'HK', '+886': 'TW', '+91': 'IN', '+62': 'ID', '+66': 'TH',
-          '+63': 'PH', '+84': 'VN', '+60': 'MY', '+65': 'SG', '+61': 'AU',
-          '+64': 'NZ', '+27': 'ZA', '+20': 'EG', '+212': 'MA', '+213': 'DZ',
-          '+234': 'NG', '+254': 'KE', '+221': 'SN'
-        }
-        
-        const sortedPrefixes = Object.keys(countryPrefixes).sort((a, b) => b.length - a.length)
-        for (const prefix of sortedPrefixes) {
-          if (cleanNumber.startsWith(prefix)) {
-            countries.add(countryPrefixes[prefix])
-            break
-          }
-        }
-      }
-    })
-    return Array.from(countries).sort()
-  }
   
   // Update local numbers when props change
   useEffect(() => {
@@ -534,41 +426,6 @@ export function NumbersTable({
       // Provider filter
       if (filters.provider !== 'all' && number.provider !== filters.provider) return false
       
-      // Country filter
-      if (filters.country !== 'all') {
-        let numberCountry = number.country_code
-        
-        // If no country_code, extract from phone number prefix
-        if (!numberCountry) {
-          const cleanNumber = number.number.replace(/\s+/g, '').replace(/[^\d+]/g, '')
-          const countryPrefixes: { [key: string]: string } = {
-            '+34': 'ES', '+33': 'FR', '+39': 'IT', '+49': 'DE', '+351': 'PT',
-            '+44': 'GB', '+353': 'IE', '+32': 'BE', '+31': 'NL', '+41': 'CH',
-            '+43': 'AT', '+45': 'DK', '+46': 'SE', '+47': 'NO', '+358': 'FI',
-            '+48': 'PL', '+420': 'CZ', '+421': 'SK', '+36': 'HU', '+40': 'RO',
-            '+359': 'BG', '+30': 'GR', '+90': 'TR', '+1': 'US', '+52': 'MX',
-            '+55': 'BR', '+54': 'AR', '+56': 'CL', '+57': 'CO', '+51': 'PE',
-            '+598': 'UY', '+595': 'PY', '+593': 'EC', '+58': 'VE', '+591': 'BO',
-            '+506': 'CR', '+507': 'PA', '+53': 'CU', '+504': 'HN', '+503': 'SV',
-            '+502': 'GT', '+505': 'NI', '+82': 'KR', '+81': 'JP', '+86': 'CN',
-            '+852': 'HK', '+886': 'TW', '+91': 'IN', '+62': 'ID', '+66': 'TH',
-            '+63': 'PH', '+84': 'VN', '+60': 'MY', '+65': 'SG', '+61': 'AU',
-            '+64': 'NZ', '+27': 'ZA', '+20': 'EG', '+212': 'MA', '+213': 'DZ',
-            '+234': 'NG', '+254': 'KE', '+221': 'SN'
-          }
-          
-          const sortedPrefixes = Object.keys(countryPrefixes).sort((a, b) => b.length - a.length)
-          for (const prefix of sortedPrefixes) {
-            if (cleanNumber.startsWith(prefix)) {
-              numberCountry = countryPrefixes[prefix]
-              break
-            }
-          }
-        }
-        
-        if (numberCountry !== filters.country) return false
-      }
-      
       // Score range filter
       const averageScore = getAverageScore(number)
       if (filters.scoreRange !== 'all') {
@@ -625,7 +482,7 @@ export function NumbersTable({
     
     // Default = monitor (only if there's some data)
     if (averageScore > 0 || spamReports > 0) {
-      return { type: 'monitor', label: '👀 Monitorear', color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200' }
+    return { type: 'monitor', label: '👀 Monitorear', color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200' }
     }
     
     // For completely new numbers with no data, return null
@@ -904,31 +761,79 @@ export function NumbersTable({
 
   return (
     <TooltipProvider>
-    <div>
-      {/* Bulk Actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-        </div>
-        {selectedNumbers.size > 0 && (
-          <div className="text-sm text-muted-foreground">
-            {selectedNumbers.size} número{selectedNumbers.size > 1 ? 's' : ''} seleccionado{selectedNumbers.size > 1 ? 's' : ''}
-          </div>
-        )}
-      </div>
-
+    <div className="space-y-6">
+      {/* Integrated Number Lists and Table */}
       <div className="w-full">
-        {/* Numbers Table - Full Screen */}
-        <div className="w-full">
-          <Card>
+        <Card>
+          {/* Integrated Tabs */}
+          {numberLists.length > 0 && (
+            <div className="px-6 pt-6 pb-2">
+              <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
+                <TabsList className="flex h-auto p-1 bg-muted/50 rounded-lg overflow-x-auto scrollbar-thin w-full min-w-0 justify-start gap-1">
+                    {numberLists.map((list) => (
+                      <Tooltip key={list.id}>
+                        <TooltipTrigger asChild>
+                          <TabsTrigger 
+                            value={list.id}
+                            className={`
+                              flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium
+                              transition-all duration-200 whitespace-nowrap flex-shrink-0
+                              min-w-0 max-w-[140px]
+                              ${list.is_system_list ? 'font-semibold' : 'font-normal'}
+                              hover:bg-background/80 hover:scale-105
+                              data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:scale-105 data-[state=active]:border-2 data-[state=active]:border-primary/20
+                              rounded-md
+                              ${list.list_type === 'all_numbers' ? 'bg-green-100 hover:bg-green-200 data-[state=active]:bg-green-200' : ''}
+                              ${list.list_type === 'discarded' ? 'bg-red-100 hover:bg-red-200 data-[state=active]:bg-red-200' : ''}
+                            `}
+                          >
+                            <span className="flex-shrink-0 text-sm">
+                              {getListIcon?.(list)}
+                            </span>
+                            <span className="truncate min-w-0 flex-1">
+                              {list.name}
+                            </span>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              {list.count !== undefined && (
+                                <span className="text-[10px] bg-muted text-muted-foreground px-1 py-0.5 rounded-full">
+                                  {formatNumber?.(list.count)}
+                                </span>
+                              )}
+        </div>
+                          </TabsTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-sm font-medium">{list.name}</p>
+                          {list.description && (
+                            <p className="text-xs text-muted-foreground">{list.description}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            {list.count !== undefined ? `${formatNumber?.(list.count)} números` : 'Sin números'}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </TabsList>
+              </Tabs>
+      </div>
+          )}
+          
+          {/* Table Content */}
+          {isLoadingNumbers ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-muted-foreground">Loading numbers...</div>
+            </div>
+          ) : (
+            <>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <CardTitle className="text-foreground">
-                      Phone Numbers ({sortedAndFilteredNumbers.length} de {localNumbers.length}) 
-                      <Badge variant="secondary" className="ml-2 text-xs">
-                        Sorted by {sortField === 'average_reputation_score' ? 'Reliability' : sortField}
-                      </Badge>
-                    </CardTitle>
+                  <CardTitle className="text-foreground">
+                    Phone Numbers ({sortedAndFilteredNumbers.length} de {localNumbers.length}) 
+                    <Badge variant="secondary" className="ml-2 text-xs">
+                      Sorted by {sortField === 'average_reputation_score' ? 'Reliability' : sortField}
+                    </Badge>
+                  </CardTitle>
                     
                     {/* Action buttons */}
                     <div className="flex items-center gap-2">
@@ -945,11 +850,10 @@ export function NumbersTable({
                       
             {localNumbers.length > 0 && (
               <Button 
-                variant="outline" 
+                variant="destructive" 
                 size="sm"
                 onClick={() => setShowDeleteDialog(true)}
                 disabled={isDeleting}
-                className="border-red-500 text-red-500 hover:bg-red-50"
               >
                 <Trash2 className="h-4 w-4 mr-1" />
                 {selectedNumbers.size > 0 ? `Delete (${selectedNumbers.size})` : `Delete All (${localNumbers.length})`}
@@ -958,12 +862,12 @@ export function NumbersTable({
             
             <BulkValidationDialog>
               <Button 
-                variant="outline" 
+                variant="default" 
                 size="sm"
-                className="border-blue-500 text-blue-500 hover:bg-blue-50"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <Shield className="h-4 w-4 mr-1" />
-                Verificación SPAM Masiva ({localNumbers.length})
+                Verificación SPAM Masiva
               </Button>
             </BulkValidationDialog>
                     </div>
@@ -1010,20 +914,6 @@ export function NumbersTable({
                   <option value="Other">Otros</option>
                 </select>
                 
-                {/* Country Filter */}
-                <select 
-                  value={filters.country} 
-                  onChange={(e) => setFilters(prev => ({ ...prev, country: e.target.value }))}
-                  className="px-3 py-1 text-sm border rounded-md bg-background"
-                >
-                  <option value="all">Todos los países</option>
-                  {getUniqueCountries().map(countryCode => (
-                    <option key={countryCode} value={countryCode}>
-                      {getCountryFlag(countryCode)} {countryCode}
-                    </option>
-                  ))}
-                </select>
-                
                 {/* Score Range Filter */}
                 <select 
                   value={filters.scoreRange} 
@@ -1052,7 +942,7 @@ export function NumbersTable({
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  onClick={() => setFilters({ status: 'all', provider: 'all', scoreRange: 'all', showSpamOnly: false, country: 'all' })}
+                  onClick={() => setFilters({ status: 'all', provider: 'all', scoreRange: 'all', showSpamOnly: false })}
                   className="text-xs"
                 >
                   <X className="h-3 w-3 mr-1" />
@@ -1082,7 +972,7 @@ export function NumbersTable({
                   </p>
                   <Button 
                     variant="outline" 
-                    onClick={() => setFilters({ status: 'all', provider: 'all', scoreRange: 'all', showSpamOnly: false, country: 'all' })}
+                    onClick={() => setFilters({ status: 'all', provider: 'all', scoreRange: 'all', showSpamOnly: false })}
                   >
                     <X className="h-4 w-4 mr-2" />
                     Limpiar Filtros
@@ -1099,30 +989,6 @@ export function NumbersTable({
                       />
                     </TableHead>
                     <TableHead className="text-muted-foreground w-20">🏆</TableHead>
-                    <TableHead 
-                      className="text-muted-foreground cursor-pointer hover:text-primary"
-                      onClick={() => handleSort('average_reputation_score')}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>Avg</span>
-                        {getSortIcon('average_reputation_score')}
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <div className="max-w-xs">
-                              <p className="font-semibold mb-1">Average Reputation Score</p>
-                              <p className="text-sm">Combined score from Numverify, OpenAI, and base reputation calculations.</p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                <strong>Formula:</strong> (Numverify + OpenAI + Base) ÷ 3
-                              </p>
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-muted-foreground w-12">🏳️</TableHead>
                     <TableHead 
                       className="text-muted-foreground cursor-pointer hover:text-primary"
                       onClick={() => handleSort('number')}
@@ -1182,6 +1048,29 @@ export function NumbersTable({
                                 <p className="text-sm">AI-powered analysis using ChatGPT for pattern recognition and spam detection.</p>
                                 <p className="text-xs text-muted-foreground mt-1">
                                   <strong>Analysis:</strong> Number patterns, spam indicators, fraud detection
+                                </p>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="text-muted-foreground cursor-pointer hover:text-primary"
+                        onClick={() => handleSort('average_reputation_score')}
+                      >
+                        <div className="flex items-center space-x-1">
+                          <span>Avg</span>
+                          {getSortIcon('average_reputation_score')}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <div className="max-w-xs">
+                                <p className="font-semibold mb-1">Average Reputation Score</p>
+                                <p className="text-sm">Combined score from Numverify, OpenAI, and base reputation calculations.</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  <strong>Formula:</strong> (Numverify + OpenAI + Base) ÷ 3
                                 </p>
                               </div>
                             </TooltipContent>
@@ -1258,21 +1147,6 @@ export function NumbersTable({
                           {index + 1}
                         </div>
                       </TableCell>
-                      {/* Average Score */}
-                      <TableCell>
-                        {renderScore(
-                          getAverageScore(number),
-                          "Average",
-                          <TrendingUp className="h-4 w-4 text-blue-500" />,
-                          "Combined score from Numverify, OpenAI, and base reputation calculations"
-                        )}
-                      </TableCell>
-                      {/* Country Flag */}
-                      <TableCell className="text-center">
-                        <span className="text-lg" title={number.country_name || number.country_code || 'Unknown'}>
-                          {getCountryFlag(number.number, number.country_code)}
-                        </span>
-                      </TableCell>
                       <TableCell
                         className="font-mono text-foreground cursor-pointer hover:text-primary"
                         onClick={() => setSelectedNumber(number)}
@@ -1321,6 +1195,14 @@ export function NumbersTable({
                             )}
                           </div>
                         </TableCell>
+                        <TableCell>
+                          {renderScore(
+                            getAverageScore(number),
+                            "Average",
+                            <TrendingUp className="h-4 w-4 text-blue-500" />,
+                            "Combined score from Numverify, OpenAI, and base reputation calculations."
+                          )}
+                        </TableCell>
                       <TableCell className="text-foreground text-sm">
                         <div className="space-y-0.5">
                           <div>{number.carrier || "-"}</div>
@@ -1351,7 +1233,7 @@ export function NumbersTable({
                           return recommendation ? (
                             <Badge className={recommendation.color}>
                               {recommendation.label}
-                            </Badge>
+                        </Badge>
                           ) : (
                             <span className="text-muted-foreground text-sm">-</span>
                           )
@@ -1368,10 +1250,10 @@ export function NumbersTable({
                               <Tooltip>
                                 <TooltipTrigger>
                                   <span className="text-blue-600">
-                                    {formatDistanceToNow(new Date(number.last_reviewed_at), { 
-                                      addSuffix: true, 
-                                      locale: es 
-                                    })}
+                                  {formatDistanceToNow(new Date(number.last_reviewed_at), { 
+                                    addSuffix: true, 
+                                    locale: es 
+                                  })}
                                   </span>
                                 </TooltipTrigger>
                                 <TooltipContent>
@@ -1388,8 +1270,8 @@ export function NumbersTable({
                         {onDeleteNumber && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button 
-                                variant="ghost" 
+                            <Button 
+                              variant="ghost" 
                                 size="sm" 
                                 className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                                 disabled={loading === number.id}
@@ -1397,7 +1279,7 @@ export function NumbersTable({
                                 {loading === number.id ? (
                                   <RefreshCw className="h-4 w-4 animate-spin" />
                                 ) : (
-                                  <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-4 w-4" />
                                 )}
                               </Button>
                             </AlertDialogTrigger>
@@ -1425,9 +1307,10 @@ export function NumbersTable({
                   ))}
                 </TableBody>
               </Table>
-              )}
             </CardContent>
-          </Card>
+            </>
+          )}
+        </Card>
           
           {/* Delete Confirmation Dialog */}
           <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -1454,7 +1337,7 @@ export function NumbersTable({
                   placeholder="Escribe 'deleted deleted' para confirmar"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 />
-              </div>
+        </div>
               
               <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => {
@@ -1594,7 +1477,7 @@ export function NumbersTable({
                           return recommendation ? (
                             <Badge className={recommendation.color}>
                               {recommendation.label}
-                            </Badge>
+                        </Badge>
                           ) : (
                             <span className="text-muted-foreground text-sm">Sin datos suficientes</span>
                           )
