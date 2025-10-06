@@ -214,13 +214,20 @@ export class NumverifyApiProvider implements SpamProvider {
       }
       // optionally: url.searchParams.set("format", "1")
 
+      console.log(`📞 Numverify API call for ${phoneNumber}:`, url.toString().replace(this.apiKey, '***'))
+
       const res = await fetch(url.toString(), {
         headers: { "Content-Type": "application/json" },
         method: "GET",
         cache: "no-store",
       })
+      
+      console.log(`📡 Numverify response status for ${phoneNumber}:`, res.status)
+      
       if (!res.ok) throw new Error(`Numverify API error: ${res.status}`)
       const data: any = await res.json()
+      
+      console.log(`📦 Numverify raw data for ${phoneNumber}:`, data)
 
       const valid = !!data.valid
       const lineType: string | undefined = data.line_type
@@ -228,6 +235,15 @@ export class NumverifyApiProvider implements SpamProvider {
       const location: string | undefined = data.location
       const countryName: string | undefined = data.country_name
       const countryCode: string | undefined = data.country_code
+
+      console.log(`✅ Numverify extracted data for ${phoneNumber}:`, {
+        valid,
+        lineType,
+        carrier,
+        location,
+        countryName,
+        countryCode
+      })
 
       // Derive a simple reputation score
       let reputation = 70
@@ -237,7 +253,7 @@ export class NumverifyApiProvider implements SpamProvider {
       if (!carrier) reputation -= 10
       reputation = Math.max(0, Math.min(100, reputation))
 
-      return {
+      const result = {
         isSpam: false,
         confidence: 0.3,
         provider: this.name,
@@ -253,6 +269,9 @@ export class NumverifyApiProvider implements SpamProvider {
           location: location || null,
         },
       }
+      
+      console.log(`🎯 Numverify final result for ${phoneNumber}:`, result)
+      return result
     } catch (e) {
       console.error("Numverify API error:", e)
       return {
