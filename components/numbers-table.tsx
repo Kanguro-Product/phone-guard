@@ -271,21 +271,6 @@ export function NumbersTable({
   // Update local numbers when props change
   useEffect(() => {
     setLocalNumbers(numbers)
-    
-    // DEBUG: Log datos crudos para ver qué tenemos
-    if (numbers.length > 0) {
-      console.log("🔍 DEBUGGING - Primer número recibido en NumbersTable:", {
-        number: numbers[0].number,
-        numverify_score: numbers[0].numverify_score,
-        openai_score: numbers[0].openai_score,
-        carrier: numbers[0].carrier,
-        line_type: numbers[0].line_type,
-        location: numbers[0].location,
-        country_code: numbers[0].country_code,
-        spam_reports: numbers[0].spam_reports,
-        "TODOS_LOS_CAMPOS": Object.keys(numbers[0])
-      })
-    }
   }, [numbers])
 
   // Load highlight list from localStorage once on mount

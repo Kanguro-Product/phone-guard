@@ -38,16 +38,5 @@ export default async function NumbersPage() {
     console.error("Error fetching phone numbers:", error)
   }
 
-  console.log("📱 Fetched phone numbers from server:", phoneNumbers?.length || 0)
-  if (phoneNumbers && phoneNumbers.length > 0) {
-    console.log("📊 Sample phone number from server:", {
-      number: phoneNumbers[0].number,
-      carrier: phoneNumbers[0].carrier,
-      line_type: phoneNumbers[0].line_type,
-      numverify_score: phoneNumbers[0].numverify_score,
-      openai_score: phoneNumbers[0].openai_score
-    })
-  }
-
   return <NumbersPageClient user={user} initialNumbers={phoneNumbers || []} />
 }

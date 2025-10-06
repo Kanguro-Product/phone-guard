@@ -122,25 +122,28 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
 
     // Simulate progress updates (since backend processes in batches of 3)
     const batchSize = 3
+    const estimatedTimePerBatch = 3000 // 3 seconds per batch (2s delay + 1s processing)
     const totalBatches = Math.ceil(totalNumbers / batchSize)
-    let currentBatch = 0
     
+    // Update progress every second with smooth animation
+    let elapsedTime = 0
     const progressInterval = setInterval(() => {
-      if (currentBatch < totalBatches) {
-        currentBatch++
-        const processed = Math.min(currentBatch * batchSize, totalNumbers)
-        
-        setProgress(prev => ({
-          ...prev,
-          current: processed,
-          apiProgress: {
-            numverify: selectedAPIs.numverify ? processed : 0,
-            openai: selectedAPIs.openai ? processed : 0,
-            hiya: selectedAPIs.hiya ? processed : 0
-          }
-        }))
-      }
-    }, 2500) // Update every 2.5 seconds (batch delay is 2s + processing time)
+      elapsedTime += 1000 // 1 second increments
+      
+      // Calculate estimated progress based on time
+      const estimatedCurrentBatch = Math.floor(elapsedTime / estimatedTimePerBatch)
+      const processed = Math.min(estimatedCurrentBatch * batchSize, totalNumbers)
+      
+      setProgress(prev => ({
+        ...prev,
+        current: processed,
+        apiProgress: {
+          numverify: selectedAPIs.numverify ? processed : 0,
+          openai: selectedAPIs.openai ? processed : 0,
+          hiya: selectedAPIs.hiya ? processed : 0
+        }
+      }))
+    }, 1000) // Update every second for smooth progress
 
     try {
       console.log("[v0] Starting bulk SPAM validation with APIs:", selectedAPIs)
@@ -180,31 +183,36 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
       
       setResults(data)
 
-      // Wait 2 seconds showing results, then close and refresh
+      // Wait 3 seconds showing results
       setTimeout(() => {
-        console.log("🔄 Closing dialog and triggering refresh...")
-        setIsValidating(false)
+        console.log("✅ Validación completada, cerrando diálogo...")
+        
+        // Close dialog first
         setOpen(false)
+        setIsValidating(false)
         
-        // Trigger refresh ONCE
-        if (onComplete) {
-          onComplete()
-        }
-        
-        // Reset state after closing
+        // Wait a bit for dialog to close, then trigger refresh
         setTimeout(() => {
-          setResults(null)
-          setError(null)
-          setProgress({
-            current: 0,
-            total: 0,
-            startTime: null,
-            estimatedEndTime: null,
-            currentNumber: "",
-            apiProgress: { numverify: 0, openai: 0, hiya: 0 }
-          })
+          console.log("🔄 Refrescando datos desde la base de datos...")
+          if (onComplete) {
+            onComplete()
+          }
+          
+          // Reset state after refresh is triggered
+          setTimeout(() => {
+            setResults(null)
+            setError(null)
+            setProgress({
+              current: 0,
+              total: 0,
+              startTime: null,
+              estimatedEndTime: null,
+              currentNumber: "",
+              apiProgress: { numverify: 0, openai: 0, hiya: 0 }
+            })
+          }, 500)
         }, 300)
-      }, 2000)
+      }, 3000)
     } catch (err) {
       clearInterval(progressInterval)
       console.error("[v0] Bulk validation error:", err)
@@ -512,7 +520,7 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
                     )}
                   </div>
                   <div className="mt-3 text-xs text-muted-foreground">
-                    El diálogo se cerrará automáticamente en 2 segundos...
+                    El diálogo se cerrará automáticamente en 3 segundos...
                   </div>
                 </AlertDescription>
               </Alert>
