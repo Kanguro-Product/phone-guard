@@ -22,12 +22,25 @@ export function useRealtimeUpdates({
   const router = useRouter()
   const supabase = createClient()
 
-  // Force refresh function
+  // Debounce refresh to avoid multiple refreshes in quick succession
+  const [refreshTimeout, setRefreshTimeout] = useState<NodeJS.Timeout | null>(null)
+
+  // Force refresh function with debounce
   const refresh = useCallback(() => {
-    console.log(`[Realtime] Manual refresh triggered for ${table}`)
-    router.refresh()
-    setLastUpdate(new Date())
-  }, [router, table])
+    // Clear any pending refresh
+    if (refreshTimeout) {
+      clearTimeout(refreshTimeout)
+    }
+    
+    // Set a new timeout to refresh after 1 second of no changes
+    const timeout = setTimeout(() => {
+      console.log(`[Realtime] Debounced refresh triggered for ${table}`)
+      router.refresh()
+      setLastUpdate(new Date())
+    }, 1000)
+    
+    setRefreshTimeout(timeout)
+  }, [router, table, refreshTimeout])
 
   // Supabase Realtime subscription
   useEffect(() => {
@@ -45,44 +58,42 @@ export function useRealtimeUpdates({
           table: table,
         },
         (payload) => {
-          console.log(`[Realtime] ${table} change detected:`, payload)
+          console.log(`[Realtime] ${table} change detected`)
           setLastUpdate(new Date())
           
           if (onUpdate) {
             onUpdate(payload)
           } else {
-            // Default behavior: refresh the page
+            // Default behavior: debounced refresh
             refresh()
           }
         }
       )
       .subscribe((status) => {
-        console.log(`[Realtime] ${table} subscription status:`, status)
+        if (status === 'SUBSCRIBED') {
+          console.log(`[Realtime] ${table} subscription active`)
+        }
         setIsConnected(status === 'SUBSCRIBED')
       })
 
     return () => {
       console.log(`[Realtime] Cleaning up subscription for ${table}`)
+      if (refreshTimeout) {
+        clearTimeout(refreshTimeout)
+      }
       supabase.removeChannel(channel)
     }
-  }, [table, enabled, onUpdate, refresh, supabase])
+  }, [table, enabled, onUpdate, refresh, supabase, refreshTimeout])
 
-  // Polling fallback
+  // Polling fallback - DISABLED to avoid constant refreshes
+  // The realtime subscription should work, if not we'll rely on manual refresh
   useEffect(() => {
     if (!enabled || isConnected) return
 
-    console.log(`[Realtime] Setting up polling for ${table} (${pollInterval}ms)`)
-
-    const interval = setInterval(() => {
-      console.log(`[Realtime] Polling ${table} for updates`)
-      refresh()
-    }, pollInterval)
-
-    return () => {
-      console.log(`[Realtime] Cleaning up polling for ${table}`)
-      clearInterval(interval)
-    }
-  }, [enabled, isConnected, pollInterval, refresh, table])
+    console.log(`[Realtime] Realtime not connected for ${table}, but polling is disabled to avoid constant refreshes`)
+    
+    // No polling - just rely on realtime or manual refresh
+  }, [enabled, isConnected, table])
 
   return {
     isConnected,
