@@ -254,6 +254,7 @@ export class NumverifyApiProvider implements SpamProvider {
         },
       }
     } catch (e) {
+      console.error("Numverify API error:", e)
       return {
         isSpam: false,
         confidence: 0.1,
@@ -262,6 +263,11 @@ export class NumverifyApiProvider implements SpamProvider {
           reputation: 60,
           reports: 0,
           reason: "Numverify API unavailable, using fallback",
+          carrier: null,
+          line_type: null,
+          country_name: null,
+          country_code: null,
+          location: null,
         },
       }
     }

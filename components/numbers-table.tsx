@@ -271,6 +271,21 @@ export function NumbersTable({
   // Update local numbers when props change
   useEffect(() => {
     setLocalNumbers(numbers)
+    
+    // DEBUG: Log datos crudos para ver qué tenemos
+    if (numbers.length > 0) {
+      console.log("🔍 DEBUGGING - Primer número recibido en NumbersTable:", {
+        number: numbers[0].number,
+        numverify_score: numbers[0].numverify_score,
+        openai_score: numbers[0].openai_score,
+        carrier: numbers[0].carrier,
+        line_type: numbers[0].line_type,
+        location: numbers[0].location,
+        country_code: numbers[0].country_code,
+        spam_reports: numbers[0].spam_reports,
+        "TODOS_LOS_CAMPOS": Object.keys(numbers[0])
+      })
+    }
   }, [numbers])
 
   // Load highlight list from localStorage once on mount
@@ -1323,26 +1338,42 @@ export function NumbersTable({
                         </TableCell>
                       <TableCell className="text-foreground text-sm">
                         <div className="space-y-0.5">
-                          <div>{number.carrier || "-"}</div>
-                          <div className="text-xs text-muted-foreground">{number.line_type || "-"}</div>
+                          <div className="font-medium">
+                            {number.carrier ? number.carrier : (
+                              <span className="text-xs text-muted-foreground italic">
+                                {number.carrier === null ? "null" : number.carrier === undefined ? "undefined" : "sin datos"}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {number.line_type || <span className="italic opacity-50">no line type</span>}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="text-foreground text-sm">
                         <div className="space-y-0.5">
-                          <div>{number.country_name || number.country_code || "-"}</div>
-                          <div className="text-xs text-muted-foreground">{number.location || "-"}</div>
+                          <div className="font-medium">
+                            {number.country_name || number.country_code || (
+                              <span className="text-xs italic text-muted-foreground">no country</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {number.location || <span className="italic opacity-50">no location</span>}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        {number.spam_reports > 0 ? (
+                        {number.spam_reports !== null && number.spam_reports !== undefined && number.spam_reports > 0 ? (
                           <div className="flex items-center space-x-1 text-red-500">
                             <AlertTriangle className="h-4 w-4" />
-                            <span>{number.spam_reports}</span>
+                            <span className="font-bold">{number.spam_reports}</span>
                           </div>
                         ) : apiCredentials.hiya.hasKey ? (
                           <span className="text-muted-foreground">0</span>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <span className="text-xs text-muted-foreground italic">
+                            {number.spam_reports === null ? "null" : number.spam_reports === undefined ? "undefined" : "-"}
+                          </span>
                         )}
                       </TableCell>
                       <TableCell>
