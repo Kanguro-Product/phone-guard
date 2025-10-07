@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { User } from "@supabase/supabase-js"
+import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -127,15 +128,17 @@ export function CallOpsTrackerPage({ user, initialTests, phoneNumbers }: CallOps
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">CallOps Tracker</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage and track your operational experiments
-          </p>
-        </div>
+    <>
+      <Navigation user={user} />
+      <div className="container mx-auto py-8 px-4 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">CallOps Tracker</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage and track your operational experiments
+            </p>
+          </div>
         <CreateTestDialog
           open={createDialogOpen}
           onOpenChange={setCreateDialogOpen}
@@ -240,6 +243,7 @@ export function CallOpsTrackerPage({ user, initialTests, phoneNumbers }: CallOps
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }
