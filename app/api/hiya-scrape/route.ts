@@ -150,12 +150,14 @@ export async function POST(request: NextRequest) {
         browserlessConnection: false,
         database: false,
         errors: [] as string[],
-        suggestions: [] as string[]
+        suggestions: [] as string[],
+        detailedLogs: [] as string[] // New: detailed logs
       }
       
       // Check environment variables
       if (BROWSERLESS_URL && HIYA_EMAIL && HIYA_PASSWORD) {
         diagnostic.envVars = true
+        diagnostic.detailedLogs.push("✅ Variables de entorno encontradas")
       } else {
         diagnostic.errors.push("Faltan variables de entorno")
         if (!BROWSERLESS_URL) diagnostic.suggestions.push("Configura BROWSERLESS_URL en Vercel")
@@ -167,6 +169,7 @@ export async function POST(request: NextRequest) {
       if (BROWSERLESS_URL) {
         if (BROWSERLESS_URL.startsWith('wss://') && BROWSERLESS_URL.includes('token=')) {
           diagnostic.browserlessUrl = true
+          diagnostic.detailedLogs.push("✅ BROWSERLESS_URL tiene formato correcto")
         } else {
           diagnostic.errors.push("BROWSERLESS_URL tiene formato incorrecto")
           diagnostic.suggestions.push("Formato correcto: wss://chrome.browserless.io?token=TU_TOKEN")
@@ -177,6 +180,7 @@ export async function POST(request: NextRequest) {
       if (HIYA_EMAIL && HIYA_PASSWORD) {
         if (HIYA_EMAIL.includes('@') && HIYA_PASSWORD.length > 0) {
           diagnostic.hiyaCredentials = true
+          diagnostic.detailedLogs.push("✅ Credenciales de Hiya válidas")
         } else {
           diagnostic.errors.push("Credenciales de Hiya inválidas")
           diagnostic.suggestions.push("Verifica que HIYA_EMAIL sea un email válido y HIYA_PASSWORD no esté vacío")
@@ -192,6 +196,7 @@ export async function POST(request: NextRequest) {
         
         if (!error) {
           diagnostic.database = true
+          diagnostic.detailedLogs.push("✅ Conexión a base de datos exitosa")
         } else {
           diagnostic.errors.push(`Error de base de datos: ${error.message}`)
           diagnostic.suggestions.push("Verifica que las tablas hiya_numbers y hiya_runs existan en Supabase")
@@ -201,19 +206,52 @@ export async function POST(request: NextRequest) {
         diagnostic.suggestions.push("Verifica la configuración de Supabase")
       }
       
-      // Test Browserless connection
+      // Test Browserless connection with detailed error handling
       if (diagnostic.browserlessUrl) {
         try {
+          diagnostic.detailedLogs.push("🔄 Intentando conectar a Browserless...")
+          
           const browser = await puppeteer.connect({
             browserWSEndpoint: BROWSERLESS_URL,
-            timeout: 10000 // 10 second timeout for diagnostic
+            timeout: 15000 // 15 second timeout for diagnostic
           })
           
+          diagnostic.detailedLogs.push("✅ Conexión a Browserless exitosa")
+          
+          // Test opening a page
+          const page = await browser.newPage()
+          diagnostic.detailedLogs.push("✅ Página nueva creada exitosamente")
+          
+          // Test navigation
+          await page.goto('https://www.google.com', { timeout: 10000 })
+          diagnostic.detailedLogs.push("✅ Navegación a Google exitosa")
+          
+          await page.close()
           await browser.close()
+          diagnostic.detailedLogs.push("✅ Navegador cerrado correctamente")
+          
           diagnostic.browserlessConnection = true
+          
         } catch (error) {
-          diagnostic.errors.push(`Error conectando a Browserless: ${error instanceof Error ? error.message : 'Unknown error'}`)
-          diagnostic.suggestions.push("Verifica que tu token de Browserless sea válido y tengas horas disponibles")
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+          diagnostic.errors.push(`Error conectando a Browserless: ${errorMessage}`)
+          
+          // Detailed error analysis
+          if (errorMessage.includes('timeout')) {
+            diagnostic.suggestions.push("Timeout: Browserless puede estar sobrecargado, intenta en unos minutos")
+          } else if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+            diagnostic.suggestions.push("Token inválido: Verifica que el token en BROWSERLESS_URL sea correcto")
+          } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+            diagnostic.suggestions.push("Acceso denegado: Verifica que tengas horas disponibles en tu cuenta de Browserless")
+          } else if (errorMessage.includes('ECONNREFUSED')) {
+            diagnostic.suggestions.push("Conexión rechazada: Verifica que la URL de Browserless sea correcta")
+          } else if (errorMessage.includes('WebSocket')) {
+            diagnostic.suggestions.push("Error de WebSocket: Verifica que BROWSERLESS_URL use el protocolo wss://")
+          } else {
+            diagnostic.suggestions.push("Error desconocido: Verifica tu cuenta de Browserless y token")
+          }
+          
+          diagnostic.detailedLogs.push(`❌ Error en conexión: ${errorMessage}`)
         }
       }
       

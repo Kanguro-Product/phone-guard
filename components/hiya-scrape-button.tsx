@@ -332,16 +332,27 @@ export function HiyaScrapeButton() {
                   </div>
                 )}
 
-                {result.diagnostic.suggestions && result.diagnostic.suggestions.length > 0 && (
-                  <div className="mt-3">
-                    <div className="font-medium text-blue-600">💡 Sugerencias:</div>
-                    <ul className="text-xs mt-1 space-y-1">
-                      {result.diagnostic.suggestions.map((suggestion: string, index: number) => (
-                        <li key={index} className="text-blue-600">• {suggestion}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+               {result.diagnostic.suggestions && result.diagnostic.suggestions.length > 0 && (
+                 <div className="mt-3">
+                   <div className="font-medium text-blue-600">💡 Sugerencias:</div>
+                   <ul className="text-xs mt-1 space-y-1">
+                     {result.diagnostic.suggestions.map((suggestion: string, index: number) => (
+                       <li key={index} className="text-blue-600">• {suggestion}</li>
+                     ))}
+                   </ul>
+                 </div>
+               )}
+
+               {result.diagnostic.detailedLogs && result.diagnostic.detailedLogs.length > 0 && (
+                 <div className="mt-3">
+                   <div className="font-medium text-gray-700">📋 Logs detallados:</div>
+                   <div className="text-xs mt-1 space-y-1 bg-gray-50 p-2 rounded max-h-32 overflow-y-auto">
+                     {result.diagnostic.detailedLogs.map((log: string, index: number) => (
+                       <div key={index} className="text-gray-600">{log}</div>
+                     ))}
+                   </div>
+                 </div>
+               )}
               </div>
             </AlertDescription>
           </Alert>
