@@ -124,16 +124,107 @@ export async function POST(request: NextRequest) {
     console.log("✅ [Hiya Scrape] Rate limit OK, proceeding...")
     
     // ============================================
-    // STEP 2: CHECK PREVIEW MODE
+    // STEP 2: CHECK PREVIEW MODE AND DIAGNOSTIC MODE
     // ============================================
     const isPreview = request.nextUrl.searchParams.get('preview') === 'true'
+    const isDiagnostic = request.nextUrl.searchParams.get('diagnostic') === 'true'
     
     if (isPreview) {
       console.log("👁️ [Hiya Scrape] Preview mode enabled (first row only)")
     }
     
+    if (isDiagnostic) {
+      console.log("🔍 [Hiya Scrape] Diagnostic mode enabled")
+    }
+    
     // ============================================
-    // STEP 3: CONNECT TO BROWSERLESS
+    // STEP 3: DIAGNOSTIC MODE - CHECK CONFIGURATION
+    // ============================================
+    if (isDiagnostic) {
+      console.log("🔍 [Hiya Scrape] Running diagnostic checks...")
+      
+      const diagnostic = {
+        envVars: false,
+        browserlessUrl: false,
+        hiyaCredentials: false,
+        browserlessConnection: false,
+        database: false,
+        errors: [] as string[],
+        suggestions: [] as string[]
+      }
+      
+      // Check environment variables
+      if (BROWSERLESS_URL && HIYA_EMAIL && HIYA_PASSWORD) {
+        diagnostic.envVars = true
+      } else {
+        diagnostic.errors.push("Faltan variables de entorno")
+        if (!BROWSERLESS_URL) diagnostic.suggestions.push("Configura BROWSERLESS_URL en Vercel")
+        if (!HIYA_EMAIL) diagnostic.suggestions.push("Configura HIYA_EMAIL en Vercel")
+        if (!HIYA_PASSWORD) diagnostic.suggestions.push("Configura HIYA_PASSWORD en Vercel")
+      }
+      
+      // Check Browserless URL format
+      if (BROWSERLESS_URL) {
+        if (BROWSERLESS_URL.startsWith('wss://') && BROWSERLESS_URL.includes('token=')) {
+          diagnostic.browserlessUrl = true
+        } else {
+          diagnostic.errors.push("BROWSERLESS_URL tiene formato incorrecto")
+          diagnostic.suggestions.push("Formato correcto: wss://chrome.browserless.io?token=TU_TOKEN")
+        }
+      }
+      
+      // Check Hiya credentials
+      if (HIYA_EMAIL && HIYA_PASSWORD) {
+        if (HIYA_EMAIL.includes('@') && HIYA_PASSWORD.length > 0) {
+          diagnostic.hiyaCredentials = true
+        } else {
+          diagnostic.errors.push("Credenciales de Hiya inválidas")
+          diagnostic.suggestions.push("Verifica que HIYA_EMAIL sea un email válido y HIYA_PASSWORD no esté vacío")
+        }
+      }
+      
+      // Test database connection
+      try {
+        const { data, error } = await supabase
+          .from('hiya_numbers')
+          .select('count')
+          .limit(1)
+        
+        if (!error) {
+          diagnostic.database = true
+        } else {
+          diagnostic.errors.push(`Error de base de datos: ${error.message}`)
+          diagnostic.suggestions.push("Verifica que las tablas hiya_numbers y hiya_runs existan en Supabase")
+        }
+      } catch (error) {
+        diagnostic.errors.push("No se pudo conectar a la base de datos")
+        diagnostic.suggestions.push("Verifica la configuración de Supabase")
+      }
+      
+      // Test Browserless connection
+      if (diagnostic.browserlessUrl) {
+        try {
+          const browser = await puppeteer.connect({
+            browserWSEndpoint: BROWSERLESS_URL,
+            timeout: 10000 // 10 second timeout for diagnostic
+          })
+          
+          await browser.close()
+          diagnostic.browserlessConnection = true
+        } catch (error) {
+          diagnostic.errors.push(`Error conectando a Browserless: ${error instanceof Error ? error.message : 'Unknown error'}`)
+          diagnostic.suggestions.push("Verifica que tu token de Browserless sea válido y tengas horas disponibles")
+        }
+      }
+      
+      return NextResponse.json({
+        ok: true,
+        diagnostic: diagnostic
+      })
+    }
+    
+    // ============================================
+    // STEP 4: CONNECT TO BROWSERLESS
     // ============================================
     console.log("🌐 [Hiya Scrape] Connecting to Browserless...")
     

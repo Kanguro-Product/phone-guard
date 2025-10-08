@@ -123,6 +123,32 @@ export function HiyaScrapeButton() {
       setLoading(false)
     }
   }
+
+  const handleDiagnostic = async () => {
+    setLoading(true)
+    setResult(null)
+    setError(null)
+    
+    try {
+      const response = await fetch('/api/hiya-scrape?diagnostic=true', {
+        method: 'POST'
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        setError(data.error || 'Error en diagnóstico')
+      } else {
+        setResult(data)
+      }
+      
+    } catch (err) {
+      console.error('Error during diagnostic:', err)
+      setError(err instanceof Error ? err.message : 'Error de conexión')
+    } finally {
+      setLoading(false)
+    }
+  }
   
   return (
     <Card>
@@ -197,6 +223,15 @@ export function HiyaScrapeButton() {
           >
             Preview
           </Button>
+          
+          <Button
+            onClick={handleDiagnostic}
+            disabled={loading}
+            variant="outline"
+            className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+          >
+            🔍 Diagnóstico
+          </Button>
         </div>
         
         {/* Result message */}
@@ -227,6 +262,86 @@ export function HiyaScrapeButton() {
                 <div className="text-xs text-muted-foreground mt-2">
                   💡 Usa esta información para ajustar los selectores en SELECTORS (api/hiya-scrape/route.ts)
                 </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Diagnostic result */}
+        {result && result.diagnostic && (
+          <Alert className="bg-purple-50 border-purple-200 dark:bg-purple-950/20 dark:border-purple-800">
+            <AlertDescription className="text-purple-800 dark:text-purple-200">
+              <div className="space-y-3">
+                <div className="font-semibold">🔍 Diagnóstico del Sistema:</div>
+                
+                <div className="grid grid-cols-1 gap-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">Variables de entorno:</span>
+                    {result.diagnostic.envVars ? (
+                      <span className="text-green-600">✅ Configuradas</span>
+                    ) : (
+                      <span className="text-red-600">❌ Faltan variables</span>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">Browserless URL:</span>
+                    {result.diagnostic.browserlessUrl ? (
+                      <span className="text-green-600">✅ Válida</span>
+                    ) : (
+                      <span className="text-red-600">❌ No configurada</span>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">Credenciales Hiya:</span>
+                    {result.diagnostic.hiyaCredentials ? (
+                      <span className="text-green-600">✅ Configuradas</span>
+                    ) : (
+                      <span className="text-red-600">❌ Faltan credenciales</span>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">Conexión Browserless:</span>
+                    {result.diagnostic.browserlessConnection ? (
+                      <span className="text-green-600">✅ Conectado</span>
+                    ) : (
+                      <span className="text-red-600">❌ Error de conexión</span>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">Base de datos:</span>
+                    {result.diagnostic.database ? (
+                      <span className="text-green-600">✅ Conectada</span>
+                    ) : (
+                      <span className="text-red-600">❌ Error de BD</span>
+                    )}
+                  </div>
+                </div>
+
+                {result.diagnostic.errors && result.diagnostic.errors.length > 0 && (
+                  <div className="mt-3">
+                    <div className="font-medium text-red-600">❌ Errores encontrados:</div>
+                    <ul className="text-xs mt-1 space-y-1">
+                      {result.diagnostic.errors.map((error: string, index: number) => (
+                        <li key={index} className="text-red-600">• {error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {result.diagnostic.suggestions && result.diagnostic.suggestions.length > 0 && (
+                  <div className="mt-3">
+                    <div className="font-medium text-blue-600">💡 Sugerencias:</div>
+                    <ul className="text-xs mt-1 space-y-1">
+                      {result.diagnostic.suggestions.map((suggestion: string, index: number) => (
+                        <li key={index} className="text-blue-600">• {suggestion}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </AlertDescription>
           </Alert>
