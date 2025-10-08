@@ -164,7 +164,8 @@ export async function POST(request: NextRequest) {
           return {
             phoneNumber: phoneNumber.number,
             success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
+            error: error instanceof Error ? error.message : "Unknown error",
+          }
         }
       })
     )
