@@ -6,6 +6,7 @@ import { AdminStats } from "@/components/admin-stats"
 import { UserManagement } from "@/components/user-management"
 import { SystemSettings } from "@/components/system-settings"
 import { AdminLogs } from "@/components/admin-logs"
+import { HiyaScrapeButton } from "@/components/hiya-scrape-button"
 import { PageTutorial } from "@/components/tutorial/page-tutorial"
 import { useTutorialContext } from "@/components/tutorial/tutorial-provider"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -44,10 +45,11 @@ export function AdminPageClient({ user, allUsers, systemStats, recentLogs, syste
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value="hiya">Hiya Scraping</TabsTrigger>
             <TabsTrigger value="logs">Activity Logs</TabsTrigger>
           </TabsList>
 
@@ -61,6 +63,10 @@ export function AdminPageClient({ user, allUsers, systemStats, recentLogs, syste
 
           <TabsContent value="settings">
             <SystemSettings settings={systemSettings} />
+          </TabsContent>
+
+          <TabsContent value="hiya">
+            <HiyaScrapeButton />
           </TabsContent>
 
           <TabsContent value="logs">

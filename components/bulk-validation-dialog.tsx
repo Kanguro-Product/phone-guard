@@ -169,7 +169,7 @@ export function BulkValidationDialog({ children, onComplete }: BulkValidationDia
       }
 
       console.log("[v0] Bulk validation completed:", data)
-      
+
       // Set final progress to 100%
       setProgress(prev => ({
         ...prev,
