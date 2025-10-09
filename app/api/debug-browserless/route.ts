@@ -67,16 +67,32 @@ export async function GET(request: NextRequest) {
       await browser.close()
       
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error("❌ [Debug Browserless] Connection error:", error)
+      
+      const errorDetails: any = {
+        error_type: error?.constructor?.name || 'Unknown',
+        error_message: error instanceof Error ? error.message : String(error),
+      }
+      
+      // Capturar más detalles del error
+      if (error instanceof Error) {
+        errorDetails.stack = error.stack
+        errorDetails.cause = error.cause
+      }
+      
+      // Si es un error de WebSocket/puppeteer, puede tener propiedades adicionales
+      if (error && typeof error === 'object') {
+        errorDetails.full_error = JSON.stringify(error, Object.getOwnPropertyNames(error))
+      }
+      
       debug.tests[debug.tests.length - 1] = {
         test: "Basic Connection",
         status: "FAIL",
-        details: { 
-          error: errorMessage,
-          error_type: error.constructor.name
-        }
+        details: errorDetails
       }
-      debug.errors.push(`Connection failed: ${errorMessage}`)
+      
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      debug.errors.push(`Connection failed: ${errorMsg}`)
     }
   }
   
@@ -167,3 +183,4 @@ export async function GET(request: NextRequest) {
     debug: debug
   })
 }
+
