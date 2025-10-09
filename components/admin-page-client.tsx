@@ -7,6 +7,7 @@ import { UserManagement } from "@/components/user-management"
 import { SystemSettings } from "@/components/system-settings"
 import { AdminLogs } from "@/components/admin-logs"
 import { HiyaScrapeButton } from "@/components/hiya-scrape-button"
+import DebugBrowserless from "@/components/debug-browserless"
 import { PageTutorial } from "@/components/tutorial/page-tutorial"
 import { useTutorialContext } from "@/components/tutorial/tutorial-provider"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -66,7 +67,10 @@ export function AdminPageClient({ user, allUsers, systemStats, recentLogs, syste
           </TabsContent>
 
           <TabsContent value="hiya">
-            <HiyaScrapeButton />
+            <div className="space-y-6">
+              <HiyaScrapeButton />
+              <DebugBrowserless />
+            </div>
           </TabsContent>
 
           <TabsContent value="logs">
