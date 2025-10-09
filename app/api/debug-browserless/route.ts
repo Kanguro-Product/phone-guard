@@ -66,23 +66,40 @@ export async function GET(request: NextRequest) {
       
       await browser.close()
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ [Debug Browserless] Connection error:", error)
+      console.error("❌ [Debug Browserless] Error type:", typeof error)
+      console.error("❌ [Debug Browserless] Error constructor:", error?.constructor?.name)
       
       const errorDetails: any = {
-        error_type: error?.constructor?.name || 'Unknown',
-        error_message: error instanceof Error ? error.message : String(error),
+        error_type: error?.constructor?.name || typeof error,
+        raw_error: String(error),
       }
       
-      // Capturar más detalles del error
+      // Intentar extraer información del ErrorEvent o WebSocket error
+      if (error?.message) errorDetails.message = error.message
+      if (error?.type) errorDetails.event_type = error.type
+      if (error?.error) errorDetails.nested_error = String(error.error)
+      if (error?.code) errorDetails.code = error.code
+      if (error?.reason) errorDetails.reason = error.reason
+      
+      // Capturar todas las propiedades propias del objeto
+      try {
+        const props: any = {}
+        for (const key in error) {
+          if (error.hasOwnProperty(key)) {
+            props[key] = String(error[key])
+          }
+        }
+        errorDetails.properties = props
+      } catch (e) {
+        errorDetails.properties_error = String(e)
+      }
+      
+      // Si es un Error estándar
       if (error instanceof Error) {
         errorDetails.stack = error.stack
-        errorDetails.cause = error.cause
-      }
-      
-      // Si es un error de WebSocket/puppeteer, puede tener propiedades adicionales
-      if (error && typeof error === 'object') {
-        errorDetails.full_error = JSON.stringify(error, Object.getOwnPropertyNames(error))
+        errorDetails.cause = error.cause ? String(error.cause) : undefined
       }
       
       debug.tests[debug.tests.length - 1] = {
@@ -91,7 +108,7 @@ export async function GET(request: NextRequest) {
         details: errorDetails
       }
       
-      const errorMsg = error instanceof Error ? error.message : String(error)
+      const errorMsg = error?.message || error?.reason || String(error)
       debug.errors.push(`Connection failed: ${errorMsg}`)
     }
   }
