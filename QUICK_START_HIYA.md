@@ -23,7 +23,12 @@
 1. Ve a https://www.browserless.io/
 2. Sign Up (gratis, 6 horas/mes)
 3. Ve al dashboard y copia tu token
-4. Guarda esta URL: `wss://chrome.browserless.io?token=TU_TOKEN_AQUI`
+4. **Importante**: Usa un endpoint regional (los endpoints antiguos ya no funcionan):
+   - 🇺🇸 US West: `wss://production-sfo.browserless.io?token=TU_TOKEN`
+   - 🇬🇧 UK: `wss://production-lon.browserless.io?token=TU_TOKEN`
+   - 🇳🇱 Amsterdam: `wss://production-ams.browserless.io?token=TU_TOKEN`
+   
+   ⚠️ **NO USES** `chrome.browserless.io` (obsoleto, da error 403)
 
 ### 3️⃣ VERCEL ENVIRONMENT VARIABLES (5 min)
 
@@ -32,12 +37,14 @@ Ve a Vercel → Tu proyecto → Settings → Environment Variables
 Añade estas 5 variables (en Production, Preview y Development):
 
 ```
-BROWSERLESS_URL=wss://chrome.browserless.io?token=TU_TOKEN_AQUI
+BROWSERLESS_URL=wss://production-sfo.browserless.io?token=TU_TOKEN_AQUI
 HIYA_EMAIL=tu_email@hiya.com
 HIYA_PASSWORD=tu_contraseña
 MAX_PER_RUN=200
 RATE_LIMIT_MINUTES=5
 ```
+
+💡 **Nota**: Usa el endpoint regional apropiado (`production-sfo`, `production-lon` o `production-ams`)
 
 ### 4️⃣ DEPLOY (2 min)
 
@@ -70,10 +77,11 @@ Si todo funcionó:
 
 ## 🐛 Si algo falla:
 
-1. **"Failed to connect to Browserless"** → Verifica BROWSERLESS_URL
-2. **"Login failed"** → Verifica HIYA_EMAIL y HIYA_PASSWORD
-3. **"No se encontraron filas"** → Lee `HIYA_SELECTOR_GUIDE.md`
-4. **"Rate limit"** → Espera 5 minutos
+1. **"Unexpected server response: 403"** → Estás usando endpoint obsoleto (`chrome.browserless.io`). Cambia a `production-sfo.browserless.io` o regional
+2. **"Failed to connect to Browserless"** → Verifica BROWSERLESS_URL y token
+3. **"Login failed"** → Verifica HIYA_EMAIL y HIYA_PASSWORD
+4. **"No se encontraron filas"** → Lee `HIYA_SELECTOR_GUIDE.md`
+5. **"Rate limit"** → Espera 5 minutos
 
 ## 📚 Documentación Completa:
 
