@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 import puppeteer from "puppeteer-core"
 
 // ============================================
@@ -89,12 +89,20 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Initialize Supabase with service role
-    const supabase = await createClient()
+    // Initialize Supabase with service role for database writes
+    const supabase = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    )
     
-    // Get authenticated user (for logging purposes)
-    const { data: { user } } = await supabase.auth.getUser()
-    const userId = user?.id || null
+    // Note: userId is null when using service role
+    const userId = null
     
     // ============================================
     // STEP 1: RATE LIMIT CHECK

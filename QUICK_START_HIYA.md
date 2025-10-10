@@ -34,7 +34,7 @@
 
 Ve a Vercel → Tu proyecto → Settings → Environment Variables
 
-Añade estas 5 variables (en Production, Preview y Development):
+Añade estas variables (en Production, Preview y Development):
 
 ```
 BROWSERLESS_URL=wss://production-sfo.browserless.io?token=TU_TOKEN_AQUI
@@ -42,9 +42,12 @@ HIYA_EMAIL=tu_email@hiya.com
 HIYA_PASSWORD=tu_contraseña
 MAX_PER_RUN=200
 RATE_LIMIT_MINUTES=5
+SUPABASE_SERVICE_ROLE_KEY=tu_service_role_key_de_supabase
 ```
 
-💡 **Nota**: Usa el endpoint regional apropiado (`production-sfo`, `production-lon` o `production-ams`)
+💡 **Notas**:
+- Usa el endpoint regional apropiado (`production-sfo`, `production-lon` o `production-ams`)
+- `SUPABASE_SERVICE_ROLE_KEY` la encuentras en Supabase → Project Settings → API → service_role key (secret)
 
 ### 4️⃣ DEPLOY (2 min)
 
