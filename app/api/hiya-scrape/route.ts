@@ -303,8 +303,60 @@ export async function POST(request: NextRequest) {
       
       console.log("📝 [Hiya Scrape] Entering credentials...")
       
-      // Wait for login form
-      await page.waitForSelector(SELECTORS.emailInput, { timeout: 10000 })
+      // Wait for login form with better error handling
+      try {
+        await page.waitForSelector(SELECTORS.emailInput, { timeout: 10000 })
+      } catch (error) {
+        // If selector fails, capture page info for debugging
+        console.error("❌ [Hiya Scrape] Email input not found. Capturing page info...")
+        
+        const pageInfo = await page.evaluate(() => {
+          const inputs = Array.from(document.querySelectorAll('input'))
+          return {
+            url: window.location.href,
+            title: document.title,
+            inputs: inputs.map(input => ({
+              type: input.type,
+              name: input.name,
+              id: input.id,
+              placeholder: input.placeholder,
+              className: input.className,
+              outerHTML: input.outerHTML.substring(0, 200)
+            })),
+            buttons: Array.from(document.querySelectorAll('button')).map(btn => ({
+              text: btn.textContent?.trim(),
+              type: btn.type,
+              className: btn.className,
+              outerHTML: btn.outerHTML.substring(0, 200)
+            }))
+          }
+        })
+        
+        console.log("🔍 [Hiya Scrape] Page info:", JSON.stringify(pageInfo, null, 2))
+        
+        // Take a screenshot for debugging
+        const screenshot = await page.screenshot({ encoding: 'base64', fullPage: false })
+        console.log("📸 [Hiya Scrape] Screenshot captured (base64, first 100 chars):", screenshot.substring(0, 100))
+        
+        // Close browser before throwing
+        await browser.close()
+        
+        // Return detailed error with page info
+        return NextResponse.json({
+          ok: false,
+          error: "Login form not found - selectors may need updating",
+          debug: {
+            pageInfo: pageInfo,
+            screenshot: screenshot.substring(0, 1000) + "...", // Truncate for response size
+            suggestions: [
+              "The login page structure has changed",
+              "Update SELECTORS.emailInput based on the inputs found below",
+              `Found ${pageInfo.inputs.length} input fields on the page`,
+              "Check Vercel Function logs for full screenshot and details"
+            ]
+          }
+        }, { status: 500 })
+      }
       
       // Fill email
       await page.type(SELECTORS.emailInput, HIYA_EMAIL)
