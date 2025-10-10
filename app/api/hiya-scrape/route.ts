@@ -28,12 +28,12 @@ const SELECTORS = {
   // Tracked numbers page selectors
   tableRows: 'table tbody tr, .table-row, [role="row"]',
   
-  // Column selectors (adjust based on actual HTML structure)
-  // Example: if columns are: Phone | Label | Score | Last Seen
-  phoneCell: 'td:nth-child(1), [data-column="phone"]',
-  labelCell: 'td:nth-child(2), [data-column="label"]',
-  scoreCell: 'td:nth-child(3), [data-column="score"]',
-  lastSeenCell: 'td:nth-child(4), [data-column="last_seen"]',
+  // Column selectors for Hiya Business table
+  // Columns: [1]Checkbox | [2]Phone | [3]Date+User | [4]Label | [5]Risk | [6]- | [7]Status
+  phoneCell: 'td:nth-child(2)', // Phone number
+  labelCell: 'td:nth-child(4)', // Business name/label
+  scoreCell: 'td:nth-child(5)', // Risk level (Low risk, High risk, etc.)
+  lastSeenCell: 'td:nth-child(3)', // Last updated date
   
   // Pagination
   nextPageButton: 'button:has-text("Next"), .pagination-next, [aria-label="Next page"]'
