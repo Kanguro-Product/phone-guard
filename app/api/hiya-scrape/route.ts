@@ -11,7 +11,7 @@ const BROWSERLESS_URL = process.env.BROWSERLESS_URL || ""
 const HIYA_EMAIL = process.env.HIYA_EMAIL || ""
 const HIYA_PASSWORD = process.env.HIYA_PASSWORD || ""
 const HIYA_LOGIN_URL = process.env.HIYA_LOGIN_URL || "https://www.hiya.com/login"
-const HIYA_TRACKED_URL = process.env.HIYA_TRACKED_URL || "https://dashboard.hiya.com/tracked"
+const HIYA_TRACKED_URL = process.env.HIYA_TRACKED_URL || "https://business.hiya.com/registration/cross-carrier-registration/phones"
 const MAX_PER_RUN = parseInt(process.env.MAX_PER_RUN || "200")
 const RATE_LIMIT_MINUTES = parseInt(process.env.RATE_LIMIT_MINUTES || "5")
 
