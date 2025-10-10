@@ -4,6 +4,7 @@ import puppeteer from "puppeteer-core"
 
 // ============================================
 // CONFIGURATION
+// Updated: 2025-10-10 - Fixed login selectors for Hiya Auth0
 // ============================================
 
 const BROWSERLESS_URL = process.env.BROWSERLESS_URL || ""
@@ -302,31 +303,36 @@ export async function POST(request: NextRequest) {
       })
       
       console.log("📝 [Hiya Scrape] Entering credentials...")
+      console.log("📝 [Hiya Scrape] Using selector:", SELECTORS.emailInput)
       
-      // Add extra wait for dynamic content
-      await page.waitForTimeout(2000)
+      // Add extra wait for dynamic content to load
+      await page.waitForTimeout(3000)
       
-      // Debug: Check if selector works before waiting
-      const selectorTest = await page.evaluate((selector) => {
-        const element = document.querySelector(selector)
+      // Debug: Check what's on the page
+      const pageDebug = await page.evaluate(() => {
         return {
-          found: !!element,
-          selector: selector,
-          elementInfo: element ? {
-            tagName: element.tagName,
-            type: (element as HTMLInputElement).type,
-            name: (element as HTMLInputElement).name,
-            id: element.id,
-            visible: !!(element as HTMLElement).offsetParent
-          } : null
+          url: window.location.href,
+          title: document.title,
+          usernameInput: document.querySelector('#username') ? 'FOUND' : 'NOT FOUND',
+          passwordInput: document.querySelector('#password') ? 'FOUND' : 'NOT FOUND',
+          allInputs: Array.from(document.querySelectorAll('input')).map(i => ({
+            id: i.id, 
+            name: i.name, 
+            type: i.type
+          }))
         }
-      }, SELECTORS.emailInput.split(',')[0].trim())
+      })
       
-      console.log("🔍 [Hiya Scrape] Selector test result:", selectorTest)
+      console.log("🔍 [Hiya Scrape] Page debug:", JSON.stringify(pageDebug, null, 2))
       
       // Wait for login form with better error handling
       try {
-        await page.waitForSelector(SELECTORS.emailInput, { timeout: 10000 })
+        console.log("⏳ [Hiya Scrape] Waiting for username input...")
+        await page.waitForSelector(SELECTORS.emailInput, { 
+          timeout: 15000,
+          visible: true 
+        })
+        console.log("✅ [Hiya Scrape] Username input found!")
       } catch (error) {
         // If selector fails, capture page info for debugging
         console.error("❌ [Hiya Scrape] Email input not found. Capturing page info...")
