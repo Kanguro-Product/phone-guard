@@ -412,43 +412,26 @@ export async function POST(request: NextRequest) {
       console.log("✅ [Hiya Scrape] Login successful!")
       
       // ============================================
-      // STEP 5: FIND TRACKED NUMBERS PAGE
+      // STEP 5: NAVIGATE TO TRACKED NUMBERS PAGE
       // ============================================
-      console.log("📊 [Hiya Scrape] Looking for tracked numbers page...")
+      console.log("📊 [Hiya Scrape] Navigating to tracked numbers page...")
       
       // Wait a bit for any redirects to complete
       await new Promise(resolve => setTimeout(resolve, 2000))
       
-      const finalUrl = page.url()
-      console.log("🔍 [Hiya Scrape] Final URL after login redirects:", finalUrl)
+      const afterLoginUrl = page.url()
+      console.log("🔍 [Hiya Scrape] URL after login:", afterLoginUrl)
       
-      // Check if we're already on a dashboard page
-      if (!finalUrl.includes('dashboard') && !finalUrl.includes('console')) {
-        // Try to navigate to tracked numbers if we have a custom URL
-        if (HIYA_TRACKED_URL && HIYA_TRACKED_URL !== "https://dashboard.hiya.com/tracked") {
-          console.log("📊 [Hiya Scrape] Navigating to custom tracked URL:", HIYA_TRACKED_URL)
-          await page.goto(HIYA_TRACKED_URL, {
-            waitUntil: 'networkidle2',
-            timeout: 30000
-          })
-        } else {
-          // Return error with current URL for debugging
-          await browser.close()
-          return NextResponse.json({
-            ok: false,
-            error: "Login successful but don't know where to find tracked numbers",
-            debug: {
-              currentUrl: finalUrl,
-              suggestions: [
-                "After logging in to Hiya, navigate to your tracked numbers page",
-                "Copy the full URL and set it as HIYA_TRACKED_URL environment variable in Vercel",
-                `Current URL after login: ${finalUrl}`,
-                "The URL might be something like: https://console.hiya.com/numbers or similar"
-              ]
-            }
-          }, { status: 500 })
-        }
-      }
+      // Always navigate to the tracked numbers page
+      console.log("🔍 [Hiya Scrape] Navigating to:", HIYA_TRACKED_URL)
+      
+      await page.goto(HIYA_TRACKED_URL, {
+        waitUntil: 'networkidle2',
+        timeout: 30000
+      })
+      
+      const finalUrl = page.url()
+      console.log("✅ [Hiya Scrape] Now at:", finalUrl)
       
       // Wait for table to load
       console.log("🔍 [Hiya Scrape] Looking for table with selector:", SELECTORS.tableRows)
