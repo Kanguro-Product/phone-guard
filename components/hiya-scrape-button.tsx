@@ -83,6 +83,10 @@ export function HiyaScrapeButton() {
           )
         } else {
           setError(data.error || 'Error desconocido')
+          // Store debug info if available
+          if (data.debug) {
+            setResult({ error: true, debug: data.debug })
+          }
         }
       } else {
         setResult(data)
@@ -112,6 +116,10 @@ export function HiyaScrapeButton() {
       
       if (!response.ok) {
         setError(data.error || 'Error desconocido')
+        // Store debug info if available
+        if (data.debug) {
+          setResult({ error: true, debug: data.debug })
+        }
       } else {
         setResult(data)
       }
@@ -353,6 +361,69 @@ export function HiyaScrapeButton() {
                    </div>
                  </div>
                )}
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Debug info from error (login page debugging) */}
+        {result && result.error && result.debug && (
+          <Alert className="bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-800">
+            <AlertDescription className="text-orange-800 dark:text-orange-200">
+              <div className="space-y-3">
+                <div className="font-semibold">🔍 Información de Debug:</div>
+                
+                {result.debug.pageInfo && (
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="font-medium">URL:</span> {result.debug.pageInfo.url}
+                    </div>
+                    <div>
+                      <span className="font-medium">Título:</span> {result.debug.pageInfo.title}
+                    </div>
+                    
+                    {result.debug.pageInfo.inputs && result.debug.pageInfo.inputs.length > 0 && (
+                      <div>
+                        <div className="font-medium mb-1">Campos de entrada encontrados ({result.debug.pageInfo.inputs.length}):</div>
+                        <div className="text-xs bg-white dark:bg-gray-800 p-2 rounded max-h-48 overflow-y-auto">
+                          {result.debug.pageInfo.inputs.map((input: any, index: number) => (
+                            <div key={index} className="mb-2 pb-2 border-b last:border-0">
+                              <div>Type: <code className="bg-gray-100 px-1 rounded">{input.type}</code></div>
+                              {input.name && <div>Name: <code className="bg-gray-100 px-1 rounded">{input.name}</code></div>}
+                              {input.id && <div>ID: <code className="bg-gray-100 px-1 rounded">{input.id}</code></div>}
+                              {input.placeholder && <div>Placeholder: {input.placeholder}</div>}
+                              {input.className && <div>Class: <code className="bg-gray-100 px-1 rounded text-[10px]">{input.className}</code></div>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {result.debug.pageInfo.buttons && result.debug.pageInfo.buttons.length > 0 && (
+                      <div>
+                        <div className="font-medium mb-1">Botones encontrados ({result.debug.pageInfo.buttons.length}):</div>
+                        <div className="text-xs bg-white dark:bg-gray-800 p-2 rounded max-h-32 overflow-y-auto">
+                          {result.debug.pageInfo.buttons.map((button: any, index: number) => (
+                            <div key={index} className="mb-1">
+                              • {button.text || '(sin texto)'} - Type: {button.type || 'button'}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {result.debug.suggestions && result.debug.suggestions.length > 0 && (
+                  <div>
+                    <div className="font-medium">💡 Sugerencias:</div>
+                    <ul className="text-sm space-y-1 mt-1">
+                      {result.debug.suggestions.map((suggestion: string, index: number) => (
+                        <li key={index} className="text-orange-600">• {suggestion}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </AlertDescription>
           </Alert>
