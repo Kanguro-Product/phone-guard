@@ -7,6 +7,7 @@ import { UserManagement } from "@/components/user-management"
 import { SystemSettings } from "@/components/system-settings"
 import { AdminLogs } from "@/components/admin-logs"
 import { HiyaScrapeButton } from "@/components/hiya-scrape-button"
+import { HiyaUploadButton } from "@/components/hiya-upload-button"
 import DebugBrowserless from "@/components/debug-browserless"
 import { PageTutorial } from "@/components/tutorial/page-tutorial"
 import { useTutorialContext } from "@/components/tutorial/tutorial-provider"
@@ -68,6 +69,7 @@ export function AdminPageClient({ user, allUsers, systemStats, recentLogs, syste
 
           <TabsContent value="hiya">
             <div className="space-y-6">
+              <HiyaUploadButton />
               <HiyaScrapeButton />
               <DebugBrowserless />
             </div>
