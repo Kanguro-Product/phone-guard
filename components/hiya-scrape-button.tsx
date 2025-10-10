@@ -373,6 +373,34 @@ export function HiyaScrapeButton() {
               <div className="space-y-3">
                 <div className="font-semibold">🔍 Información de Debug:</div>
                 
+                {result.debug.currentSelector && (
+                  <div className="mb-3 p-2 bg-yellow-50 rounded text-sm">
+                    <div className="font-medium mb-1">🎯 Selector actual:</div>
+                    <code className="bg-white px-2 py-1 rounded text-xs">{result.debug.currentSelector}</code>
+                  </div>
+                )}
+                
+                {result.debug.selectorTest && (
+                  <div className="mb-3 p-2 bg-blue-50 rounded text-sm">
+                    <div className="font-medium mb-1">🧪 Test de Selector:</div>
+                    <div className="text-xs space-y-1">
+                      <div>Selector: <code className="bg-white px-1 rounded">{result.debug.selectorTest.selector}</code></div>
+                      <div>Encontrado: <span className={result.debug.selectorTest.found ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>
+                        {result.debug.selectorTest.found ? '✅ SÍ' : '❌ NO'}
+                      </span></div>
+                      {result.debug.selectorTest.elementInfo && (
+                        <div className="mt-1 p-1 bg-white rounded">
+                          <div>Tag: {result.debug.selectorTest.elementInfo.tagName}</div>
+                          <div>Type: {result.debug.selectorTest.elementInfo.type}</div>
+                          <div>Name: {result.debug.selectorTest.elementInfo.name}</div>
+                          <div>ID: {result.debug.selectorTest.elementInfo.id}</div>
+                          <div>Visible: {result.debug.selectorTest.elementInfo.visible ? '✅' : '❌'}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
                 {result.debug.pageInfo && (
                   <div className="space-y-2 text-sm">
                     <div>

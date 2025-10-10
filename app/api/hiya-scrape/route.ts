@@ -20,8 +20,8 @@ const RATE_LIMIT_MINUTES = parseInt(process.env.RATE_LIMIT_MINUTES || "5")
 // ============================================
 const SELECTORS = {
   // Login page selectors
-  emailInput: 'input[name="username"], #username',  // Hiya usa "username" no "email"
-  passwordInput: 'input[type="password"], input[name="password"], #password',
+  emailInput: '#username',  // Hiya usa "username" no "email"
+  passwordInput: '#password',
   loginButton: 'button[type="submit"]',
   
   // Tracked numbers page selectors
@@ -303,6 +303,27 @@ export async function POST(request: NextRequest) {
       
       console.log("📝 [Hiya Scrape] Entering credentials...")
       
+      // Add extra wait for dynamic content
+      await page.waitForTimeout(2000)
+      
+      // Debug: Check if selector works before waiting
+      const selectorTest = await page.evaluate((selector) => {
+        const element = document.querySelector(selector)
+        return {
+          found: !!element,
+          selector: selector,
+          elementInfo: element ? {
+            tagName: element.tagName,
+            type: (element as HTMLInputElement).type,
+            name: (element as HTMLInputElement).name,
+            id: element.id,
+            visible: !!(element as HTMLElement).offsetParent
+          } : null
+        }
+      }, SELECTORS.emailInput.split(',')[0].trim())
+      
+      console.log("🔍 [Hiya Scrape] Selector test result:", selectorTest)
+      
       // Wait for login form with better error handling
       try {
         await page.waitForSelector(SELECTORS.emailInput, { timeout: 10000 })
@@ -346,11 +367,14 @@ export async function POST(request: NextRequest) {
           ok: false,
           error: "Login form not found - selectors may need updating",
           debug: {
+            selectorTest: selectorTest,
+            currentSelector: SELECTORS.emailInput,
             pageInfo: pageInfo,
             screenshot: screenshot.substring(0, 1000) + "...", // Truncate for response size
             suggestions: [
               "The login page structure has changed",
-              "Update SELECTORS.emailInput based on the inputs found below",
+              `Current selector being used: ${SELECTORS.emailInput}`,
+              `Selector test result: ${selectorTest.found ? 'FOUND ✅' : 'NOT FOUND ❌'}`,
               `Found ${pageInfo.inputs.length} input fields on the page`,
               "Check Vercel Function logs for full screenshot and details"
             ]
