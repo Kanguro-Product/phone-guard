@@ -17,8 +17,7 @@ const SELECTORS = {
   passwordInput: 'input[type="password"], input[name="password"], #password',
   loginButton: 'button[type="submit"]',
   phoneNumbersTextarea: 'textarea',
-  jobNameInput: 'input[type="text"]',
-  submitButton: 'button:has-text("SUBMIT"), button[type="submit"]'
+  jobNameInput: 'input[type="text"]'
 }
 
 export async function POST(request: NextRequest) {
@@ -222,18 +221,27 @@ export async function POST(request: NextRequest) {
       // Wait a bit before submitting
       await new Promise(resolve => setTimeout(resolve, 2000))
       
-      // Find and click submit button
-      await page.waitForSelector(SELECTORS.submitButton, { 
-        timeout: 10000,
+      // Find submit button using XPath (searches for button with text "SUBMIT")
+      console.log("📤 [Hiya Upload] Looking for SUBMIT button...")
+      
+      const submitButtonXPath = '//button[contains(text(), "SUBMIT") or contains(text(), "Submit")]'
+      await page.waitForXPath(submitButtonXPath, { 
+        timeout: 15000,
         visible: true 
       })
+      
+      const submitButtons = await page.$x(submitButtonXPath)
+      
+      if (submitButtons.length === 0) {
+        throw new Error('Submit button not found')
+      }
       
       console.log("📤 [Hiya Upload] Clicking submit button...")
       
       // Click submit with navigation wait
       try {
         await Promise.all([
-          page.click(SELECTORS.submitButton),
+          submitButtons[0].click(),
           page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 })
         ])
       } catch (navError) {
