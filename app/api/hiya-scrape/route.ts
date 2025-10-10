@@ -20,9 +20,9 @@ const RATE_LIMIT_MINUTES = parseInt(process.env.RATE_LIMIT_MINUTES || "5")
 // ============================================
 const SELECTORS = {
   // Login page selectors
-  emailInput: 'input[type="email"], input[name="email"], #email',
+  emailInput: 'input[name="username"], #username',  // Hiya usa "username" no "email"
   passwordInput: 'input[type="password"], input[name="password"], #password',
-  loginButton: 'button[type="submit"], button:has-text("Log in"), button:has-text("Sign in")',
+  loginButton: 'button[type="submit"]',
   
   // Tracked numbers page selectors
   tableRows: 'table tbody tr, .table-row, [role="row"]',
