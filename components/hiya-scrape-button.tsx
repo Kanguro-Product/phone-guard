@@ -439,6 +439,52 @@ export function HiyaScrapeButton() {
                         </div>
                       </div>
                     )}
+                    
+                    {/* Table debug info */}
+                    {result.debug.pageInfo.hasTables !== undefined && (
+                      <div>
+                        <div className="font-medium mb-1">📊 Información de Tablas:</div>
+                        <div className="text-xs bg-white dark:bg-gray-800 p-2 rounded space-y-1">
+                          <div>• Tablas: {result.debug.pageInfo.hasTables}</div>
+                          <div>• tbody: {result.debug.pageInfo.hasTbody}</div>
+                          <div>• Filas (tr): {result.debug.pageInfo.hasTr}</div>
+                          <div>• .table-row: {result.debug.pageInfo.hasTableRows}</div>
+                          <div>• [role="row"]: {result.debug.pageInfo.hasRoleRow}</div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {result.debug.pageInfo.allTables && result.debug.pageInfo.allTables.length > 0 && (
+                      <div>
+                        <div className="font-medium mb-1">🔍 Tablas encontradas ({result.debug.pageInfo.allTables.length}):</div>
+                        <div className="text-xs bg-white dark:bg-gray-800 p-2 rounded max-h-32 overflow-y-auto">
+                          {result.debug.pageInfo.allTables.map((table: any, index: number) => (
+                            <div key={index} className="mb-2 pb-2 border-b last:border-0">
+                              <div>Tabla #{index + 1}</div>
+                              <div>Filas: {table.rows}</div>
+                              {table.className && <div>Class: <code className="bg-gray-100 px-1 rounded text-[10px]">{table.className}</code></div>}
+                              {table.id && <div>ID: <code className="bg-gray-100 px-1 rounded">{table.id}</code></div>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {result.debug.pageInfo.possibleRows && result.debug.pageInfo.possibleRows.length > 0 && (
+                      <div>
+                        <div className="font-medium mb-1">🎯 Posibles elementos fila ({result.debug.pageInfo.possibleRows.length}):</div>
+                        <div className="text-xs bg-white dark:bg-gray-800 p-2 rounded max-h-48 overflow-y-auto">
+                          {result.debug.pageInfo.possibleRows.map((row: any, index: number) => (
+                            <div key={index} className="mb-2 pb-2 border-b last:border-0">
+                              <div>Tag: <code className="bg-gray-100 px-1 rounded">{row.tag}</code></div>
+                              {row.className && <div>Class: <code className="bg-gray-100 px-1 rounded text-[10px]">{row.className}</code></div>}
+                              {row.id && <div>ID: <code className="bg-gray-100 px-1 rounded">{row.id}</code></div>}
+                              {row.text && <div className="text-gray-500 truncate">Texto: {row.text}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 

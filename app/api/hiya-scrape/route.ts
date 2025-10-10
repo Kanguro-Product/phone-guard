@@ -451,9 +451,61 @@ export async function POST(request: NextRequest) {
       }
       
       // Wait for table to load
-      await page.waitForSelector(SELECTORS.tableRows, { timeout: 10000 })
+      console.log("🔍 [Hiya Scrape] Looking for table with selector:", SELECTORS.tableRows)
       
-      console.log("✅ [Hiya Scrape] Table loaded!")
+      // Wait a bit for page to fully load
+      await new Promise(resolve => setTimeout(resolve, 3000))
+      
+      // Check what's on the page before waiting
+      const tableDebug = await page.evaluate(() => {
+        return {
+          url: window.location.href,
+          title: document.title,
+          hasTables: document.querySelectorAll('table').length,
+          hasTbody: document.querySelectorAll('tbody').length,
+          hasTr: document.querySelectorAll('tr').length,
+          hasTableRows: document.querySelectorAll('.table-row').length,
+          hasRoleRow: document.querySelectorAll('[role="row"]').length,
+          allTables: Array.from(document.querySelectorAll('table')).map((table, i) => ({
+            index: i,
+            rows: table.querySelectorAll('tr').length,
+            className: table.className,
+            id: table.id
+          })),
+          // Get first 5 elements that might be rows
+          possibleRows: Array.from(document.querySelectorAll('div[class*="row"], li, tr')).slice(0, 10).map(el => ({
+            tag: el.tagName,
+            className: el.className,
+            id: el.id,
+            text: el.textContent?.substring(0, 100)
+          }))
+        }
+      })
+      
+      console.log("🔍 [Hiya Scrape] Table debug:", JSON.stringify(tableDebug, null, 2))
+      
+      try {
+        await page.waitForSelector(SELECTORS.tableRows, { timeout: 10000 })
+        console.log("✅ [Hiya Scrape] Table loaded!")
+      } catch (error) {
+        // If table not found, return debug info
+        await browser.close()
+        return NextResponse.json({
+          ok: false,
+          error: "Table not found on tracked numbers page",
+          debug: {
+            pageInfo: tableDebug,
+            suggestions: [
+              "The table structure has changed or uses different selectors",
+              `Found ${tableDebug.hasTables} <table> elements`,
+              `Found ${tableDebug.hasTr} <tr> elements`,
+              `Found ${tableDebug.hasRoleRow} elements with role="row"`,
+              "Check the page structure and update SELECTORS.tableRows",
+              "You may need to navigate to a different page within the Hiya dashboard"
+            ]
+          }
+        }, { status: 500 })
+      }
       
       // ============================================
       // STEP 6: SCRAPE DATA
