@@ -403,6 +403,8 @@ export async function POST(request: NextRequest) {
       
       // Check if login was successful
       const currentUrl = page.url()
+      console.log("🔍 [Hiya Scrape] Current URL after login:", currentUrl)
+      
       if (currentUrl.includes('login') || currentUrl.includes('error')) {
         throw new Error('Login failed. Check credentials or handle MFA/CAPTCHA manually.')
       }
@@ -410,14 +412,43 @@ export async function POST(request: NextRequest) {
       console.log("✅ [Hiya Scrape] Login successful!")
       
       // ============================================
-      // STEP 5: NAVIGATE TO TRACKED NUMBERS
+      // STEP 5: FIND TRACKED NUMBERS PAGE
       // ============================================
-      console.log("📊 [Hiya Scrape] Navigating to tracked numbers page...")
+      console.log("📊 [Hiya Scrape] Looking for tracked numbers page...")
       
-      await page.goto(HIYA_TRACKED_URL, {
-        waitUntil: 'networkidle2',
-        timeout: 30000
-      })
+      // Wait a bit for any redirects to complete
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      const finalUrl = page.url()
+      console.log("🔍 [Hiya Scrape] Final URL after login redirects:", finalUrl)
+      
+      // Check if we're already on a dashboard page
+      if (!finalUrl.includes('dashboard') && !finalUrl.includes('console')) {
+        // Try to navigate to tracked numbers if we have a custom URL
+        if (HIYA_TRACKED_URL && HIYA_TRACKED_URL !== "https://dashboard.hiya.com/tracked") {
+          console.log("📊 [Hiya Scrape] Navigating to custom tracked URL:", HIYA_TRACKED_URL)
+          await page.goto(HIYA_TRACKED_URL, {
+            waitUntil: 'networkidle2',
+            timeout: 30000
+          })
+        } else {
+          // Return error with current URL for debugging
+          await browser.close()
+          return NextResponse.json({
+            ok: false,
+            error: "Login successful but don't know where to find tracked numbers",
+            debug: {
+              currentUrl: finalUrl,
+              suggestions: [
+                "After logging in to Hiya, navigate to your tracked numbers page",
+                "Copy the full URL and set it as HIYA_TRACKED_URL environment variable in Vercel",
+                `Current URL after login: ${finalUrl}`,
+                "The URL might be something like: https://console.hiya.com/numbers or similar"
+              ]
+            }
+          }, { status: 500 })
+        }
+      }
       
       // Wait for table to load
       await page.waitForSelector(SELECTORS.tableRows, { timeout: 10000 })
