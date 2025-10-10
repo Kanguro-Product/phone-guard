@@ -221,27 +221,27 @@ export async function POST(request: NextRequest) {
       // Wait a bit before submitting
       await new Promise(resolve => setTimeout(resolve, 2000))
       
-      // Find submit button using XPath (searches for button with text "SUBMIT")
+      // Find submit button by looking for all buttons and filtering by text
       console.log("📤 [Hiya Upload] Looking for SUBMIT button...")
       
-      const submitButtonXPath = '//button[contains(text(), "SUBMIT") or contains(text(), "Submit")]'
-      await page.waitForXPath(submitButtonXPath, { 
-        timeout: 15000,
-        visible: true 
+      const submitButton = await page.evaluateHandle(() => {
+        const buttons = Array.from(document.querySelectorAll('button'))
+        return buttons.find(btn => 
+          btn.textContent?.toUpperCase().includes('SUBMIT') ||
+          btn.type === 'submit'
+        )
       })
       
-      const submitButtons = await page.$x(submitButtonXPath)
-      
-      if (submitButtons.length === 0) {
+      if (!submitButton) {
         throw new Error('Submit button not found')
       }
       
-      console.log("📤 [Hiya Upload] Clicking submit button...")
+      console.log("📤 [Hiya Upload] Found submit button, clicking...")
       
       // Click submit with navigation wait
       try {
         await Promise.all([
-          submitButtons[0].click(),
+          submitButton.asElement()?.click(),
           page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 })
         ])
       } catch (navError) {
