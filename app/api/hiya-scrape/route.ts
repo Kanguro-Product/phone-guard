@@ -89,6 +89,17 @@ export async function POST(request: NextRequest) {
       )
     }
     
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json(
+        { 
+          ok: false, 
+          error: "Supabase configuration missing",
+          details: "NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required. Add them in Vercel → Settings → Environment Variables"
+        },
+        { status: 500 }
+      )
+    }
+    
     // Initialize Supabase with service role for database writes
     const supabase = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
