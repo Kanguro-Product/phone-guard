@@ -85,6 +85,14 @@ export function HiyaUploadButton() {
                 <div className="text-sm">
                   • Duración: {(result.durationMs / 1000).toFixed(1)}s
                 </div>
+                {result.numbers && result.numbers.length > 0 && (
+                  <div className="text-xs mt-2 bg-white dark:bg-gray-800 p-2 rounded">
+                    <div className="font-medium mb-1">Primeros 5 números subidos:</div>
+                    {result.numbers.map((num: string, i: number) => (
+                      <div key={i}>• {num}</div>
+                    ))}
+                  </div>
+                )}
                 <div className="text-xs mt-2 text-green-700">
                   💡 Los números tardarán unas horas en ser trackeados por Hiya. 
                   Después podrás ejecutar el scraping para obtener los resultados.

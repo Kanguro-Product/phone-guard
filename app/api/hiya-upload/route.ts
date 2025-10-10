@@ -71,8 +71,9 @@ export async function POST(request: NextRequest) {
     
     const { data: phoneNumbers, error: dbError } = await supabase
       .from('phone_numbers')
-      .select('number')
+      .select('number, status')
       .eq('status', 'active')
+      .not('number', 'is', null)
       .limit(1000) // Max 1000 per upload
     
     if (dbError) {
@@ -90,7 +91,22 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    console.log(`✅ [Hiya Upload] Found ${phoneNumbers.length} phone numbers to upload`)
+    // Filter out any invalid numbers
+    const validNumbers = phoneNumbers.filter(pn => 
+      pn.number && 
+      pn.number.trim() !== '' &&
+      pn.number.startsWith('+')
+    )
+    
+    console.log(`✅ [Hiya Upload] Found ${validNumbers.length} valid phone numbers to upload`)
+    console.log(`📋 [Hiya Upload] First 5 numbers:`, validNumbers.slice(0, 5).map(n => n.number))
+    
+    if (validNumbers.length === 0) {
+      return NextResponse.json(
+        { ok: false, error: "No valid phone numbers found (must start with +)" },
+        { status: 404 }
+      )
+    }
     
     // ============================================
     // STEP 2: CONNECT TO BROWSERLESS
@@ -168,7 +184,7 @@ export async function POST(request: NextRequest) {
       await new Promise(resolve => setTimeout(resolve, 3000))
       
       // Prepare numbers list (one per line)
-      const numbersText = phoneNumbers.map(pn => pn.number).join('\n')
+      const numbersText = validNumbers.map(pn => pn.number).join('\n')
       
       console.log(`📋 [Hiya Upload] Waiting for textarea...`)
       await page.waitForSelector(SELECTORS.phoneNumbersTextarea, { 
@@ -176,7 +192,7 @@ export async function POST(request: NextRequest) {
         visible: true 
       })
       
-      console.log(`📋 [Hiya Upload] Filling textarea with ${phoneNumbers.length} numbers...`)
+      console.log(`📋 [Hiya Upload] Filling textarea with ${validNumbers.length} numbers...`)
       // Use evaluate instead of type for large text (faster and more reliable)
       await page.evaluate((text, selector) => {
         const textarea = document.querySelector(selector) as HTMLTextAreaElement
@@ -211,7 +227,7 @@ export async function POST(request: NextRequest) {
         }
       }, jobName, SELECTORS.jobNameInput)
       
-      console.log(`✅ [Hiya Upload] Form filled with ${phoneNumbers.length} numbers`)
+      console.log(`✅ [Hiya Upload] Form filled with ${validNumbers.length} numbers`)
       
       // ============================================
       // STEP 6: SUBMIT
@@ -260,10 +276,11 @@ export async function POST(request: NextRequest) {
       
       return NextResponse.json({
         ok: true,
-        uploaded: phoneNumbers.length,
+        uploaded: validNumbers.length,
         jobName: jobName,
-        message: `Successfully uploaded ${phoneNumbers.length} phone numbers to Hiya`,
-        durationMs: duration
+        message: `Successfully uploaded ${validNumbers.length} phone numbers to Hiya`,
+        durationMs: duration,
+        numbers: validNumbers.slice(0, 5).map(n => n.number) // First 5 for verification
       })
       
     } catch (error) {
