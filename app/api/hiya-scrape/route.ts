@@ -306,7 +306,7 @@ export async function POST(request: NextRequest) {
       console.log("📝 [Hiya Scrape] Using selector:", SELECTORS.emailInput)
       
       // Add extra wait for dynamic content to load
-      await page.waitForTimeout(3000)
+      await new Promise(resolve => setTimeout(resolve, 3000))
       
       // Debug: Check what's on the page
       const pageDebug = await page.evaluate(() => {
@@ -505,7 +505,7 @@ export async function POST(request: NextRequest) {
               if (!isDisabled) {
                 console.log("➡️ [Hiya Scrape] Navigating to next page...")
                 await nextButton.click()
-                await page.waitForTimeout(2000) // Wait for page to load
+                await new Promise(resolve => setTimeout(resolve, 2000)) // Wait for page to load
                 await page.waitForSelector(SELECTORS.tableRows, { timeout: 10000 })
               } else {
                 hasMorePages = false
