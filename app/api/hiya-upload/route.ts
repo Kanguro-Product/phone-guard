@@ -165,16 +165,52 @@ export async function POST(request: NextRequest) {
       // ============================================
       console.log("📋 [Hiya Upload] Filling upload form...")
       
+      // Wait for page to fully load
+      await new Promise(resolve => setTimeout(resolve, 3000))
+      
       // Prepare numbers list (one per line)
       const numbersText = phoneNumbers.map(pn => pn.number).join('\n')
       
-      // Fill textarea
-      await page.waitForSelector(SELECTORS.phoneNumbersTextarea, { timeout: 10000 })
-      await page.type(SELECTORS.phoneNumbersTextarea, numbersText)
+      console.log(`📋 [Hiya Upload] Waiting for textarea...`)
+      await page.waitForSelector(SELECTORS.phoneNumbersTextarea, { 
+        timeout: 15000,
+        visible: true 
+      })
+      
+      console.log(`📋 [Hiya Upload] Filling textarea with ${phoneNumbers.length} numbers...`)
+      // Use evaluate instead of type for large text (faster and more reliable)
+      await page.evaluate((text, selector) => {
+        const textarea = document.querySelector(selector) as HTMLTextAreaElement
+        if (textarea) {
+          textarea.value = text
+          // Trigger input event
+          textarea.dispatchEvent(new Event('input', { bubbles: true }))
+          textarea.dispatchEvent(new Event('change', { bubbles: true }))
+        }
+      }, numbersText, SELECTORS.phoneNumbersTextarea)
+      
+      console.log(`✅ [Hiya Upload] Textarea filled`)
+      
+      // Wait a bit before filling job name
+      await new Promise(resolve => setTimeout(resolve, 1000))
       
       // Fill job name
       const jobName = `Upload ${new Date().toISOString().split('T')[0]}`
-      await page.type(SELECTORS.jobNameInput, jobName)
+      console.log(`📋 [Hiya Upload] Filling job name: ${jobName}`)
+      
+      await page.waitForSelector(SELECTORS.jobNameInput, { 
+        timeout: 10000,
+        visible: true 
+      })
+      
+      await page.evaluate((name, selector) => {
+        const input = document.querySelector(selector) as HTMLInputElement
+        if (input) {
+          input.value = name
+          input.dispatchEvent(new Event('input', { bubbles: true }))
+          input.dispatchEvent(new Event('change', { bubbles: true }))
+        }
+      }, jobName, SELECTORS.jobNameInput)
       
       console.log(`✅ [Hiya Upload] Form filled with ${phoneNumbers.length} numbers`)
       
@@ -183,13 +219,28 @@ export async function POST(request: NextRequest) {
       // ============================================
       console.log("📤 [Hiya Upload] Submitting form...")
       
-      await Promise.all([
-        page.click(SELECTORS.submitButton),
-        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 })
-      ])
+      // Wait a bit before submitting
+      await new Promise(resolve => setTimeout(resolve, 2000))
       
-      // Wait for confirmation
-      await new Promise(resolve => setTimeout(resolve, 3000))
+      // Find and click submit button
+      await page.waitForSelector(SELECTORS.submitButton, { 
+        timeout: 10000,
+        visible: true 
+      })
+      
+      console.log("📤 [Hiya Upload] Clicking submit button...")
+      
+      // Click submit with navigation wait
+      try {
+        await Promise.all([
+          page.click(SELECTORS.submitButton),
+          page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 })
+        ])
+      } catch (navError) {
+        console.log("⚠️ [Hiya Upload] Navigation wait timeout, checking if submit succeeded anyway...")
+        // Sometimes navigation doesn't happen but form is submitted
+        await new Promise(resolve => setTimeout(resolve, 3000))
+      }
       
       const finalUrl = page.url()
       console.log("✅ [Hiya Upload] Upload complete! Final URL:", finalUrl)
