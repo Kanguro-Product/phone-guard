@@ -624,37 +624,48 @@ export async function POST(request: NextRequest) {
       }
       
       // ============================================
-      // STEP 8: UPSERT TO DATABASE
+      // STEP 8: UPDATE PHONE_NUMBERS IN DATABASE
       // ============================================
-      console.log("💾 [Hiya Scrape] Saving to database...")
+      console.log("💾 [Hiya Scrape] Updating phone_numbers with Hiya data...")
       
       let successCount = 0
       const errors: any[] = []
+      const notFoundCount = 0
       
       for (const row of scrapedRows) {
-        const { error } = await supabase
-          .from('hiya_numbers')
-          .upsert({
-            phone: row.phone,
-            is_spam: row.is_spam,
-            label: row.label,
-            score: row.score,
-            last_seen: row.last_seen,
-            checked_at: new Date().toISOString(),
-            raw: row.raw
-          }, {
-            onConflict: 'phone'
+        // Determine if spam based on risk score
+        const isSpam = row.score && (
+          row.score.toLowerCase().includes('high risk') ||
+          row.score.toLowerCase().includes('spam') ||
+          row.score.toLowerCase().includes('scam')
+        )
+        
+        // Update phone_numbers table where number matches
+        const { data, error } = await supabase
+          .from('phone_numbers')
+          .update({
+            hiya_label: row.label,
+            hiya_risk_score: row.score,
+            hiya_is_spam: isSpam || row.is_spam,
+            hiya_last_checked: new Date().toISOString(),
+            hiya_raw_data: row.raw
           })
+          .eq('number', row.phone)
+          .select()
         
         if (error) {
-          console.error(`❌ [Hiya Scrape] Error upserting ${row.phone}:`, error)
+          console.error(`❌ [Hiya Scrape] Error updating ${row.phone}:`, error)
           errors.push({ phone: row.phone, error: error.message })
+        } else if (!data || data.length === 0) {
+          // Number not found in phone_numbers (skip silently)
+          console.log(`ℹ️ [Hiya Scrape] Number ${row.phone} not found in phone_numbers, skipping`)
         } else {
           successCount++
+          console.log(`✅ [Hiya Scrape] Updated ${row.phone} - Risk: ${row.score}`)
         }
       }
       
-      console.log(`✅ [Hiya Scrape] Saved ${successCount}/${scrapedRows.length} rows`)
+      console.log(`✅ [Hiya Scrape] Updated ${successCount}/${scrapedRows.length} phone numbers`)
       
       // ============================================
       // STEP 9: LOG RUN
