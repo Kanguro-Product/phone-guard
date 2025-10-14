@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Phone, BarChart3, Settings, LogOut, User, PhoneCall, Shield, HelpCircle, FlaskConical } from "lucide-react"
+import { Phone, BarChart3, Settings, LogOut, User, Shield, HelpCircle } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useTutorialContext } from "@/components/tutorial/tutorial-provider"
 import Image from "next/image"
@@ -98,18 +98,11 @@ export function Navigation({ user }: NavigationProps) {
             <span>Numbers</span>
           </Link>
           <Link
-            href="/cadences"
+            href="/ab-caller"
             className="flex items-center space-x-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            <Settings className="h-4 w-4" />
-            <span>Cadences</span>
-          </Link>
-          <Link
-            href="/callops"
-            className="flex items-center space-x-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <FlaskConical className="h-4 w-4" />
-            <span>CallOps Tracker</span>
+            <BarChart3 className="h-4 w-4" />
+            <span>A/B Caller Tool</span>
           </Link>
           <Link
             href="/integrations"
@@ -117,13 +110,6 @@ export function Navigation({ user }: NavigationProps) {
           >
             <Settings className="h-4 w-4" />
             <span>Integrations</span>
-          </Link>
-          <Link
-            href="/calls"
-            className="flex items-center space-x-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <PhoneCall className="h-4 w-4" />
-            <span>Calls</span>
           </Link>
           {userRole === "admin" && (
             <Link

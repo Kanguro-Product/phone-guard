@@ -27,7 +27,7 @@ const PROVIDER_HINT: Record<string, { key: string; secret?: string; doc?: string
     secret: "API Secret",
     doc: "https://developer.vonage.com/",
     help:
-      "Create a Vonage account, generate an API Key and Secret in the Dashboard → API settings. Paste them below.",
+      "Create a Vonage account, generate an API Key and Secret in the Dashboard → API settings. Required for A/B Caller Tool voice calls.",
   },
   hiya: {
     key: "API Key",
@@ -47,6 +47,27 @@ const PROVIDER_HINT: Record<string, { key: string; secret?: string; doc?: string
     doc: "https://platform.openai.com/",
     help:
       "Get your OpenAI API key from platform.openai.com → API Keys. This enables ChatGPT-powered number analysis and spam detection.",
+  },
+  whatsapp: {
+    key: "Access Token",
+    secret: "App Secret",
+    doc: "https://developers.facebook.com/docs/whatsapp/cloud-api/",
+    help:
+      "Get your WhatsApp Business API credentials from Meta for Developers. Required for A/B Caller Tool WhatsApp nudges.",
+  },
+  email: {
+    key: "SMTP Host",
+    secret: "SMTP Password",
+    doc: "https://support.google.com/mail/answer/7126229",
+    help:
+      "Configure your email provider SMTP settings. Required for A/B Caller Tool email nudges.",
+  },
+  sms: {
+    key: "API Key",
+    secret: "API Secret",
+    doc: "https://www.twilio.com/docs/sms",
+    help:
+      "Configure SMS provider (Twilio, Vonage SMS, etc.) for A/B Caller Tool SMS nudges.",
   },
 }
 
@@ -82,6 +103,9 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
   const [hiya, setHiya] = useState<{ api_key: string; api_secret: string }>({ api_key: "", api_secret: "" })
   const [numverify, setNumverify] = useState<{ api_key: string }>({ api_key: "" })
   const [openai, setOpenai] = useState<{ api_key: string }>({ api_key: "" })
+  const [whatsapp, setWhatsapp] = useState<{ api_key: string; api_secret: string }>({ api_key: "", api_secret: "" })
+  const [email, setEmail] = useState<{ api_key: string; api_secret: string }>({ api_key: "", api_secret: "" })
+  const [sms, setSms] = useState<{ api_key: string; api_secret: string }>({ api_key: "", api_secret: "" })
 
   const masked = useMemo(() => (value: string) => {
     if (!value) return ""
@@ -367,6 +391,148 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* A/B Caller Tool Integrations */}
+        <div className="mt-8">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-foreground">A/B Caller Tool Integrations</h2>
+            <p className="text-muted-foreground mt-2">Configure communication channels for A/B test nudges and notifications</p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-foreground flex items-center justify-between">
+                  <span>WhatsApp Business API</span>
+                  <Badge variant="default">A/B Tool Required</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="whatsapp_key">{PROVIDER_HINT.whatsapp.key}</Label>
+                    <Input
+                      id="whatsapp_key"
+                      type="password"
+                      placeholder="paste your WhatsApp Access Token"
+                      value={whatsapp.api_key}
+                      onChange={(e) => setWhatsapp((v) => ({ ...v, api_key: e.target.value }))}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="whatsapp_secret">{PROVIDER_HINT.whatsapp.secret}</Label>
+                    <Input
+                      id="whatsapp_secret"
+                      type="password"
+                      placeholder="paste your WhatsApp App Secret"
+                      value={whatsapp.api_secret}
+                      onChange={(e) => setWhatsapp((v) => ({ ...v, api_secret: e.target.value }))}
+                    />
+                  </div>
+                  {PROVIDER_HINT.whatsapp.help && (
+                    <div className="text-[11px] text-muted-foreground">{PROVIDER_HINT.whatsapp.help} Docs: {PROVIDER_HINT.whatsapp.doc}</div>
+                  )}
+                  <div className="flex justify-end">
+                    <Button variant="outline" onClick={() => testConnection("whatsapp")} disabled={loading === "whatsapp"}>
+                      Test connection
+                    </Button>
+                    <Button onClick={() => upsertProvider("whatsapp", whatsapp, true)} disabled={loading === "whatsapp"}>
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-foreground flex items-center justify-between">
+                  <span>Email SMTP</span>
+                  <Badge variant="default">A/B Tool Required</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="email_key">{PROVIDER_HINT.email.key}</Label>
+                    <Input
+                      id="email_key"
+                      type="text"
+                      placeholder="smtp.gmail.com"
+                      value={email.api_key}
+                      onChange={(e) => setEmail((v) => ({ ...v, api_key: e.target.value }))}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="email_secret">{PROVIDER_HINT.email.secret}</Label>
+                    <Input
+                      id="email_secret"
+                      type="password"
+                      placeholder="your SMTP password"
+                      value={email.api_secret}
+                      onChange={(e) => setEmail((v) => ({ ...v, api_secret: e.target.value }))}
+                    />
+                  </div>
+                  {PROVIDER_HINT.email.help && (
+                    <div className="text-[11px] text-muted-foreground">{PROVIDER_HINT.email.help} Docs: {PROVIDER_HINT.email.doc}</div>
+                  )}
+                  <div className="flex justify-end">
+                    <Button variant="outline" onClick={() => testConnection("email")} disabled={loading === "email"}>
+                      Test connection
+                    </Button>
+                    <Button onClick={() => upsertProvider("email", email, true)} disabled={loading === "email"}>
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-foreground flex items-center justify-between">
+                  <span>SMS Provider</span>
+                  <Badge variant="default">A/B Tool Required</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="sms_key">{PROVIDER_HINT.sms.key}</Label>
+                    <Input
+                      id="sms_key"
+                      type="password"
+                      placeholder="paste your SMS API key"
+                      value={sms.api_key}
+                      onChange={(e) => setSms((v) => ({ ...v, api_key: e.target.value }))}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="sms_secret">{PROVIDER_HINT.sms.secret}</Label>
+                    <Input
+                      id="sms_secret"
+                      type="password"
+                      placeholder="paste your SMS API secret"
+                      value={sms.api_secret}
+                      onChange={(e) => setSms((v) => ({ ...v, api_secret: e.target.value }))}
+                    />
+                  </div>
+                  {PROVIDER_HINT.sms.help && (
+                    <div className="text-[11px] text-muted-foreground">{PROVIDER_HINT.sms.help} Docs: {PROVIDER_HINT.sms.doc}</div>
+                  )}
+                  <div className="flex justify-end">
+                    <Button variant="outline" onClick={() => testConnection("sms")} disabled={loading === "sms"}>
+                      Test connection
+                    </Button>
+                    <Button onClick={() => upsertProvider("sms", sms, true)} disabled={loading === "sms"}>
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </main>
     </div>

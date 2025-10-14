@@ -1,0 +1,106 @@
+{
+  "test_name": "week_plan_day1_fixed_vs_mobile_baseline_{{RUN_ID}}",
+  "timezone": "{{TIMEZONE}}",
+  "workday": {
+    "start": "{{WORKDAY_START}}",
+    "end": "{{WORKDAY_END}}"
+  },
+  "groups": {
+    "A": {
+      "label": "Mobile",
+      "cli": "{{CLI_MOBILE}}"
+    },
+    "B": {
+      "label": "Fixed",
+      "cli": "{{CLI_FIXED}}"
+    }
+  },
+  "leads": "{{LEADS_ARRAY}}",
+  "assignment": {
+    "mode": "random_1_to_1",
+    "block_size": "{{BLOCK_SIZE}}"
+  },
+  "attempts_policy": {
+    "max_attempts": "{{MAX_ATTEMPTS}}",
+    "ring_times_sec": "{{RING_TIMES_ARRAY}}",
+    "min_gap_after_attempts": "{{GAPS_OBJECT}}",
+    "max_attempts_per_hour_per_lead": "{{MAX_ATTEMPTS_PER_HOUR_PER_LEAD}}"
+  },
+  "waves": {
+    "enabled": "{{WAVES_ENABLED}}",
+    "per_group_leads": "{{PER_GROUP_LEADS}}",
+    "wave_size": "{{WAVE_SIZE}}",
+    "schedule": "{{WAVE_SCHEDULE_ARRAY}}"
+  },
+  "nudges": {
+    "whatsapp": {
+      "enabled": false,
+      "when": "after_attempt_{{N}}_fail",
+      "text_template": "{{WA_TEXT}}",
+      "template_name": "{{WA_TEMPLATE_NAME}}",
+      "template_language": "{{WA_TEMPLATE_LANG}}",
+      "sender_phone_number_id": "{{META_WA_PHONE_NUMBER_ID}}",
+      "business_number_display": "{{BUSINESS_DISPLAY_NAME}}",
+      "buttons": "{{WA_BUTTONS_ARRAY}}"
+    },
+    "voicemail": {
+      "enabled": true,
+      "only_on_attempt_N": "{{VM_ON_ATTEMPT}}",
+      "text": "{{VM_TEXT}}"
+    },
+    "email": {
+      "enabled": false,
+      "template_id": "{{EMAIL_TEMPLATE}}",
+      "subject": "{{EMAIL_SUBJECT}}",
+      "from": "{{EMAIL_FROM}}"
+    }
+  },
+  "spam_controls": {
+    "snapshot_interval_min": "{{SNAPSHOT_INTERVAL_MIN}}",
+    "stop_rules": "{{STOP_RULES_OBJECT}}"
+  },
+  "spam_checker": {
+    "enabled": true,
+    "policy": "mixed",
+    "signal_source": "internal_api",
+    "scoring_field": "risk_score",
+    "labels_field": "labels",
+    "thresholds": {
+      "block_above": "{{THRESH_BLOCK}}",
+      "slow_above": "{{THRESH_SLOW}}",
+      "warn_above": "{{THRESH_WARN}}"
+    },
+    "windowing": {
+      "horizon": "{{WINDOW_HORIZON}}",
+      "granularity": "{{WINDOW_STEP}}"
+    },
+    "actions": {
+      "block": "pause_cli",
+      "slow": "downshift_rate",
+      "warn": "notify"
+    },
+    "telemetry_fields": ["{{FIELD_1}}", "{{FIELD_2}}"]
+  },
+  "metrics_windows": {
+    "callback_2h": true,
+    "callback_24h": true
+  },
+  "reporting": {
+    "realtime_interval_min": "{{REALTIME_INTERVAL_MIN}}"
+  },
+  "compliance": {
+    "max_calls_per_cli_per_hour": "{{MAX_CALLS_PER_CLI_PER_HOUR}}",
+    "respect_robinson": true
+  },
+  "env_refs": [
+    "META_WA_TOKEN",
+    "META_WA_VERIFY_TOKEN",
+    "META_WA_APP_SECRET",
+    "META_GRAPH_VERSION",
+    "META_WA_PHONE_NUMBER_ID",
+    "VONAGE_APPLICATION_ID",
+    "VONAGE_PRIVATE_KEY",
+    "SMTP_API_KEY"
+  ]
+}
+

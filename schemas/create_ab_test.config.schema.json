@@ -1,0 +1,524 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "A/B Test Configuration Schema",
+  "description": "Configuration schema for A/B Caller Tool tests with Vonage Voice, Meta WhatsApp, Email, and Internal Spam Checker integration",
+  "required": [
+    "test_name",
+    "timezone",
+    "workday",
+    "groups",
+    "leads",
+    "assignment",
+    "attempts_policy",
+    "spam_checker"
+  ],
+  "properties": {
+    "test_name": {
+      "type": "string",
+      "description": "Unique identifier for the test",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "timezone": {
+      "type": "string",
+      "description": "Timezone for the test (e.g., 'Europe/Madrid', 'America/New_York')",
+      "pattern": "^[A-Za-z_/]+$"
+    },
+    "workday": {
+      "type": "object",
+      "description": "Working hours configuration",
+      "required": ["start", "end"],
+      "properties": {
+        "start": {
+          "type": "string",
+          "description": "Workday start time (HH:MM format)",
+          "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+        },
+        "end": {
+          "type": "string",
+          "description": "Workday end time (HH:MM format)",
+          "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+        }
+      }
+    },
+    "groups": {
+      "type": "object",
+      "description": "Test groups configuration",
+      "required": ["A", "B"],
+      "properties": {
+        "A": {
+          "type": "object",
+          "required": ["label", "cli"],
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "Group A label",
+              "minLength": 1
+            },
+            "cli": {
+              "type": "string",
+              "description": "Group A CLI (calling line identifier)",
+              "minLength": 1
+            }
+          }
+        },
+        "B": {
+          "type": "object",
+          "required": ["label", "cli"],
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "Group B label",
+              "minLength": 1
+            },
+            "cli": {
+              "type": "string",
+              "description": "Group B CLI (calling line identifier)",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "leads": {
+      "type": "array",
+      "description": "Array of leads to test",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["lead_id", "phone"],
+        "properties": {
+          "lead_id": {
+            "type": "string",
+            "description": "Unique lead identifier"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Lead phone number",
+            "pattern": "^\\+?[1-9]\\d{1,14}$"
+          },
+          "sector": {
+            "type": "string",
+            "description": "Lead sector (optional)"
+          },
+          "province": {
+            "type": "string",
+            "description": "Lead province (optional)"
+          }
+        }
+      }
+    },
+    "assignment": {
+      "type": "object",
+      "description": "Lead assignment strategy",
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["random_1_to_1", "stratified"],
+          "description": "Assignment mode"
+        },
+        "block_size": {
+          "type": "integer",
+          "description": "Block size for stratified assignment",
+          "minimum": 1
+        }
+      }
+    },
+    "attempts_policy": {
+      "type": "object",
+      "description": "Call attempt policy",
+      "required": ["max_attempts", "ring_times_sec", "min_gap_after_attempts", "max_attempts_per_hour_per_lead"],
+      "properties": {
+        "max_attempts": {
+          "type": "integer",
+          "description": "Maximum attempts per lead",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "ring_times_sec": {
+          "type": "array",
+          "description": "Ring times for each attempt",
+          "items": {
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 60
+          },
+          "minItems": 1
+        },
+        "min_gap_after_attempts": {
+          "type": "object",
+          "description": "Minimum gaps between attempts",
+          "patternProperties": {
+            "^after_[0-9]+$": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "max_attempts_per_hour_per_lead": {
+          "type": "integer",
+          "description": "Maximum attempts per hour per lead",
+          "minimum": 1
+        }
+      }
+    },
+    "waves": {
+      "type": "object",
+      "description": "Wave configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether waves are enabled"
+        },
+        "per_group_leads": {
+          "type": "integer",
+          "description": "Leads per group per wave",
+          "minimum": 1
+        },
+        "wave_size": {
+          "type": "integer",
+          "description": "Wave size",
+          "minimum": 1
+        },
+        "schedule": {
+          "type": "array",
+          "description": "Wave schedule",
+          "items": {
+            "type": "object",
+            "required": ["start", "end", "target_calls_per_hour"],
+            "properties": {
+              "start": {
+                "type": "string",
+                "description": "Wave start time (HH:MM format)"
+              },
+              "end": {
+                "type": "string",
+                "description": "Wave end time (HH:MM format)"
+              },
+              "target_calls_per_hour": {
+                "oneOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["maintain", "reduce"]
+                  }
+                ],
+                "description": "Target calls per hour"
+              }
+            }
+          }
+        }
+      }
+    },
+    "nudges": {
+      "type": "object",
+      "description": "Nudge configuration",
+      "properties": {
+        "whatsapp": {
+          "type": "object",
+          "description": "WhatsApp nudge configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether WhatsApp nudges are enabled"
+            },
+            "when": {
+              "type": "string",
+              "description": "When to send WhatsApp nudge",
+              "pattern": "^after_attempt_[0-9]+_fail$|^after_voicemail$"
+            },
+            "text_template": {
+              "type": "string",
+              "description": "WhatsApp message template"
+            },
+            "template_name": {
+              "type": "string",
+              "description": "WhatsApp template name"
+            },
+            "template_language": {
+              "type": "string",
+              "description": "WhatsApp template language"
+            },
+            "sender_phone_number_id": {
+              "type": "string",
+              "description": "Meta WhatsApp phone number ID"
+            },
+            "business_number_display": {
+              "type": "string",
+              "description": "Business display name"
+            },
+            "buttons": {
+              "type": "array",
+              "description": "WhatsApp message buttons",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["reply"]
+                  },
+                  "reply": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "voicemail": {
+          "type": "object",
+          "description": "Voicemail nudge configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether voicemail nudges are enabled"
+            },
+            "only_on_attempt_N": {
+              "type": "integer",
+              "description": "Only on specific attempt number",
+              "minimum": 1
+            },
+            "text": {
+              "type": "string",
+              "description": "Voicemail message text"
+            }
+          }
+        },
+        "email": {
+          "type": "object",
+          "description": "Email nudge configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether email nudges are enabled"
+            },
+            "template_id": {
+              "type": "string",
+              "description": "Email template ID"
+            },
+            "html": {
+              "type": "string",
+              "description": "Email HTML content"
+            },
+            "subject": {
+              "type": "string",
+              "description": "Email subject"
+            },
+            "from": {
+              "type": "string",
+              "description": "Email sender"
+            }
+          }
+        }
+      }
+    },
+    "spam_controls": {
+      "type": "object",
+      "description": "Spam control configuration",
+      "properties": {
+        "snapshot_interval_min": {
+          "type": "integer",
+          "description": "Snapshot interval in minutes",
+          "minimum": 1
+        },
+        "stop_rules": {
+          "type": "object",
+          "description": "Stop rules configuration",
+          "properties": {
+            "on_first_flag": {
+              "type": "object",
+              "properties": {
+                "action": {
+                  "type": "string",
+                  "enum": ["pause", "stop", "notify"]
+                },
+                "pause_min": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "on_second_flag": {
+              "type": "object",
+              "properties": {
+                "action": {
+                  "type": "string",
+                  "enum": ["pause", "stop", "notify"]
+                }
+              }
+            },
+            "on_answer_rate_drop_pct": {
+              "type": "number",
+              "description": "Answer rate drop percentage threshold",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "on_hangup_over_answered_pct": {
+              "type": "number",
+              "description": "Hangup over answered percentage threshold",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "rate_downshift_factor": {
+              "type": "number",
+              "description": "Rate downshift factor",
+              "minimum": 0.1,
+              "maximum": 1.0
+            }
+          }
+        }
+      }
+    },
+    "spam_checker": {
+      "type": "object",
+      "description": "Internal spam checker configuration",
+      "required": ["enabled", "policy", "signal_source", "scoring_field", "labels_field", "thresholds", "windowing", "actions"],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether spam checker is enabled"
+        },
+        "policy": {
+          "type": "string",
+          "enum": ["pre_call_gate", "pre_wave_gate", "post_event_eval", "mixed"],
+          "description": "Spam checker policy"
+        },
+        "signal_source": {
+          "type": "string",
+          "enum": ["internal_api", "lib", "event_bus"],
+          "description": "Spam checker signal source"
+        },
+        "scoring_field": {
+          "type": "string",
+          "description": "Field name for spam score"
+        },
+        "labels_field": {
+          "type": "string",
+          "description": "Field name for spam labels"
+        },
+        "thresholds": {
+          "type": "object",
+          "description": "Spam checker thresholds",
+          "properties": {
+            "block_above": {
+              "type": "number",
+              "description": "Block threshold"
+            },
+            "slow_above": {
+              "type": "number",
+              "description": "Slow down threshold"
+            },
+            "warn_above": {
+              "type": "number",
+              "description": "Warning threshold"
+            }
+          }
+        },
+        "windowing": {
+          "type": "object",
+          "description": "Windowing configuration",
+          "required": ["horizon", "granularity"],
+          "properties": {
+            "horizon": {
+              "type": "string",
+              "description": "Time horizon (e.g., '1h', '24h', 'ISO8601')"
+            },
+            "granularity": {
+              "type": "string",
+              "description": "Time granularity (e.g., '10m', '1h')"
+            }
+          }
+        },
+        "actions": {
+          "type": "object",
+          "description": "Action mapping for spam checker results",
+          "properties": {
+            "block": {
+              "type": "string",
+              "enum": ["skip_call", "pause_cli", "reassign", "queue_review"],
+              "description": "Action for block threshold"
+            },
+            "slow": {
+              "type": "string",
+              "enum": ["downshift_rate", "notify"],
+              "description": "Action for slow threshold"
+            },
+            "warn": {
+              "type": "string",
+              "enum": ["log_only", "notify"],
+              "description": "Action for warn threshold"
+            }
+          }
+        },
+        "telemetry_fields": {
+          "type": "array",
+          "description": "Telemetry fields to capture",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "metrics_windows": {
+      "type": "object",
+      "description": "Metrics window configuration",
+      "properties": {
+        "callback_2h": {
+          "type": "boolean",
+          "description": "2-hour callback window"
+        },
+        "callback_24h": {
+          "type": "boolean",
+          "description": "24-hour callback window"
+        }
+      }
+    },
+    "reporting": {
+      "type": "object",
+      "description": "Reporting configuration",
+      "properties": {
+        "realtime_interval_min": {
+          "type": "integer",
+          "description": "Real-time reporting interval in minutes",
+          "minimum": 1
+        }
+      }
+    },
+    "compliance": {
+      "type": "object",
+      "description": "Compliance configuration",
+      "properties": {
+        "max_calls_per_cli_per_hour": {
+          "type": "integer",
+          "description": "Maximum calls per CLI per hour",
+          "minimum": 1
+        },
+        "respect_robinson": {
+          "type": "boolean",
+          "description": "Respect Robinson list"
+        }
+      }
+    },
+    "env_refs": {
+      "type": "array",
+      "description": "Environment variable references",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
+

@@ -1,0 +1,777 @@
+openapi: 3.0.3
+info:
+  title: A/B Caller Tool API
+  description: API for managing A/B calling tests with Vonage Voice, Meta WhatsApp, and Email integration
+  version: 1.0.0
+  contact:
+    name: Phone Guard Support
+    email: support@phoneguard.com
+
+servers:
+  - url: https://phoneguard.com/api
+    description: Production server
+  - url: http://localhost:3000/api
+    description: Development server
+
+security:
+  - bearerAuth: []
+
+paths:
+  /ab-tests:
+    get:
+      summary: List A/B tests
+      description: Get a list of all A/B tests for the authenticated user
+      tags:
+        - A/B Tests
+      parameters:
+        - name: status
+          in: query
+          description: Filter by test status
+          schema:
+            type: string
+            enum: [draft, scheduled, running, paused, stopped, completed, failed]
+        - name: limit
+          in: query
+          description: Number of tests to return
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: Number of tests to skip
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: List of A/B tests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  tests:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ABTest'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      summary: Create A/B test
+      description: Create a new A/B test with the provided configuration
+      tags:
+        - A/B Tests
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ABTestConfig'
+      responses:
+        '201':
+          description: Test created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  test_id:
+                    type: string
+                  test_state:
+                    $ref: '#/components/schemas/ABTestState'
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ab-tests/{testId}:
+    get:
+      summary: Get A/B test
+      description: Get details of a specific A/B test
+      tags:
+        - A/B Tests
+      parameters:
+        - name: testId
+          in: path
+          required: true
+          description: Test ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Test details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  test:
+                    $ref: '#/components/schemas/ABTest'
+                  metrics:
+                    $ref: '#/components/schemas/TestMetrics'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      summary: Delete A/B test
+      description: Delete an A/B test (only if not running or paused)
+      tags:
+        - A/B Tests
+      parameters:
+        - name: testId
+          in: path
+          required: true
+          description: Test ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Test deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ab-tests/{testId}/actions:
+    post:
+      summary: Perform test action
+      description: Start, pause, resume, or stop an A/B test
+      tags:
+        - A/B Tests
+      parameters:
+        - name: testId
+          in: path
+          required: true
+          description: Test ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - action
+              properties:
+                action:
+                  type: string
+                  enum: [start, pause, resume, stop]
+                  description: Action to perform on the test
+                reason:
+                  type: string
+                  description: Optional reason for the action
+      responses:
+        '200':
+          description: Action performed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  test_id:
+                    type: string
+                  action:
+                    type: string
+                  test_state:
+                    $ref: '#/components/schemas/ABTestState'
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ab-tests/{testId}/metrics:
+    get:
+      summary: Get test metrics
+      description: Get detailed metrics and comparison for an A/B test
+      tags:
+        - Metrics
+      parameters:
+        - name: testId
+          in: path
+          required: true
+          description: Test ID
+          schema:
+            type: string
+        - name: interval
+          in: query
+          description: Time interval for metrics
+          schema:
+            type: string
+            enum: [total, hourly, daily]
+            default: total
+        - name: group
+          in: query
+          description: Filter by group (A or B)
+          schema:
+            type: string
+            enum: [A, B]
+      responses:
+        '200':
+          description: Test metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  test_id:
+                    type: string
+                  test_name:
+                    type: string
+                  group_a:
+                    $ref: '#/components/schemas/AggregatedMetrics'
+                  group_b:
+                    $ref: '#/components/schemas/AggregatedMetrics'
+                  comparison:
+                    $ref: '#/components/schemas/ComparisonMetrics'
+                  timestamp:
+                    type: string
+                    format: date-time
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /webhooks/voice/events:
+    post:
+      summary: Voice webhook
+      description: Handle voice call events from Vonage
+      tags:
+        - Webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoiceWebhookEvent'
+      responses:
+        '200':
+          description: Event processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /webhooks/whatsapp:
+    get:
+      summary: WhatsApp webhook verification
+      description: Verify WhatsApp webhook from Meta
+      tags:
+        - Webhooks
+      parameters:
+        - name: hub.mode
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: hub.verify_token
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: hub.challenge
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Webhook verified
+          content:
+            text/plain:
+              schema:
+                type: string
+        '403':
+          description: Verification failed
+
+    post:
+      summary: WhatsApp webhook
+      description: Handle WhatsApp events from Meta
+      tags:
+        - Webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WhatsAppWebhookEvent'
+      responses:
+        '200':
+          description: Event processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ABTest:
+      type: object
+      properties:
+        test_id:
+          type: string
+        test_name:
+          type: string
+        status:
+          type: string
+          enum: [draft, scheduled, running, paused, stopped, completed, failed]
+        runtime_status:
+          type: string
+          enum: [draft, scheduled, running, paused, stopped, completed, failed]
+        config:
+          $ref: '#/components/schemas/ABTestConfig'
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+        paused_at:
+          type: string
+          format: date-time
+        stopped_at:
+          type: string
+          format: date-time
+        current_metrics:
+          $ref: '#/components/schemas/TestMetrics'
+
+    ABTestState:
+      type: object
+      properties:
+        test_id:
+          type: string
+        status:
+          type: string
+          enum: [draft, scheduled, running, paused, stopped, completed, failed]
+        config:
+          $ref: '#/components/schemas/ABTestConfig'
+        assignments:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssignmentResult'
+        scheduled_calls:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScheduledCall'
+        current_metrics:
+          $ref: '#/components/schemas/TestMetrics'
+        started_at:
+          type: string
+          format: date-time
+        paused_at:
+          type: string
+          format: date-time
+        stopped_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        error:
+          type: string
+
+    ABTestConfig:
+      type: object
+      required:
+        - test_name
+        - timezone
+        - workday
+        - groups
+        - leads
+        - assignment
+        - attempts_policy
+      properties:
+        test_name:
+          type: string
+          description: Name of the test
+        timezone:
+          type: string
+          description: Timezone for the test
+        workday:
+          type: object
+          properties:
+            start:
+              type: string
+              pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$'
+            end:
+              type: string
+              pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$'
+        groups:
+          type: object
+          properties:
+            A:
+              type: object
+              properties:
+                label:
+                  type: string
+                cli:
+                  type: string
+            B:
+              type: object
+              properties:
+                label:
+                  type: string
+                cli:
+                  type: string
+        leads:
+          type: array
+          items:
+            $ref: '#/components/schemas/Lead'
+        assignment:
+          type: object
+          properties:
+            mode:
+              type: string
+              enum: [random_1_to_1, stratified]
+            block_size:
+              type: integer
+        attempts_policy:
+          type: object
+          properties:
+            max_attempts:
+              type: integer
+            ring_times_sec:
+              type: array
+              items:
+                type: integer
+            min_gap_after_attempts:
+              type: object
+            max_attempts_per_hour_per_lead:
+              type: integer
+        waves:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            per_group_leads:
+              type: integer
+            wave_size:
+              type: integer
+            schedule:
+              type: array
+              items:
+                type: object
+        nudges:
+          type: object
+          properties:
+            whatsapp:
+              type: object
+            voicemail:
+              type: object
+            email:
+              type: object
+        spam_controls:
+          type: object
+        spam_checker:
+          type: object
+        compliance:
+          type: object
+
+    Lead:
+      type: object
+      required:
+        - lead_id
+        - phone
+      properties:
+        lead_id:
+          type: string
+        phone:
+          type: string
+        sector:
+          type: string
+        province:
+          type: string
+
+    AssignmentResult:
+      type: object
+      properties:
+        lead_id:
+          type: string
+        group:
+          type: string
+          enum: [A, B]
+        assignment_reason:
+          type: string
+        metadata:
+          type: object
+
+    ScheduledCall:
+      type: object
+      properties:
+        call_id:
+          type: string
+        lead_id:
+          type: string
+        phone:
+          type: string
+        group:
+          type: string
+          enum: [A, B]
+        cli:
+          type: string
+        attempt_number:
+          type: integer
+        scheduled_time:
+          type: string
+          format: date-time
+        wave_id:
+          type: string
+        test_id:
+          type: string
+        priority:
+          type: integer
+
+    TestMetrics:
+      type: object
+      properties:
+        total_calls:
+          type: integer
+        answered_calls:
+          type: integer
+        failed_calls:
+          type: integer
+        spam_flags:
+          type: integer
+        answer_rate:
+          type: number
+        hangup_rate:
+          type: number
+        average_call_duration:
+          type: number
+        last_updated:
+          type: string
+          format: date-time
+
+    AggregatedMetrics:
+      type: object
+      properties:
+        total_calls:
+          type: integer
+        answered_calls:
+          type: integer
+        failed_calls:
+          type: integer
+        busy_calls:
+          type: integer
+        rejected_calls:
+          type: integer
+        voicemail_calls:
+          type: integer
+        spam_blocked_calls:
+          type: integer
+        answer_rate:
+          type: number
+        connect_rate:
+          type: number
+        spam_block_rate:
+          type: number
+        average_duration:
+          type: number
+        total_duration:
+          type: integer
+        spam_flags:
+          type: integer
+        hangup_rate:
+          type: number
+        leads_contacted:
+          type: integer
+        leads_answered:
+          type: integer
+        callbacks_2h:
+          type: integer
+        callbacks_24h:
+          type: integer
+
+    ComparisonMetrics:
+      type: object
+      properties:
+        answer_rate_diff:
+          type: number
+        answer_rate_diff_pct:
+          type: number
+        connect_rate_diff:
+          type: number
+        spam_block_rate_diff:
+          type: number
+        average_duration_diff:
+          type: number
+        statistical_significance:
+          type: boolean
+        confidence_level:
+          type: number
+
+    VoiceWebhookEvent:
+      type: object
+      properties:
+        uuid:
+          type: string
+        conversation_uuid:
+          type: string
+        status:
+          type: string
+        direction:
+          type: string
+        from:
+          type: string
+        to:
+          type: string
+        duration:
+          type: integer
+        start_time:
+          type: string
+        end_time:
+          type: string
+        rate:
+          type: number
+        price:
+          type: number
+        network:
+          type: string
+
+    WhatsAppWebhookEvent:
+      type: object
+      properties:
+        entry:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              changes:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    value:
+                      type: object
+                    field:
+                      type: string
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              details:
+                type: string
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              details:
+                type: string
+
+tags:
+  - name: A/B Tests
+    description: Operations for managing A/B tests
+  - name: Metrics
+    description: Operations for retrieving test metrics
+  - name: Webhooks
+    description: Webhook endpoints for external services
