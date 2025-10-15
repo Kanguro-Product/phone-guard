@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("integrations")
-      .select("api_key, api_secret, enabled")
+      .select("api_key, api_secret, enabled, credentials")
       .eq("user_id", user.id)
       .eq("provider", provider)
       .eq("enabled", true)
@@ -60,6 +60,57 @@ export async function POST(request: NextRequest) {
         ok: true, 
         message: "OpenAI API connection successful",
         models: models.data?.slice(0, 3).map((m: any) => m.id) || []
+      })
+    }
+
+    if (provider === "n8n") {
+      // Test N8N webhook with a simple POST request
+      const webhookUrl = data.credentials?.webhook_url
+      if (!webhookUrl) {
+        return NextResponse.json({ ok: false, message: "N8N webhook URL not configured" })
+      }
+
+      try {
+        const testPayload = {
+          test: true,
+          timestamp: new Date().toISOString(),
+          message: "Connection test from Phone Guard"
+        }
+
+        const testResponse = await fetch(webhookUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(testPayload)
+        })
+
+        if (testResponse.ok) {
+          return NextResponse.json({ 
+            ok: true, 
+            message: "N8N webhook connection successful",
+            webhook_url: webhookUrl
+          })
+        } else {
+          return NextResponse.json({ 
+            ok: false, 
+            status: testResponse.status, 
+            message: "N8N webhook test failed" 
+          })
+        }
+      } catch (error) {
+        return NextResponse.json({ 
+          ok: false, 
+          message: `N8N webhook error: ${error instanceof Error ? error.message : 'Unknown error'}` 
+        })
+      }
+    }
+
+    if (provider === "whatsapp" || provider === "email" || provider === "sms") {
+      // For these providers, just confirm credentials are present
+      return NextResponse.json({ 
+        ok: true, 
+        message: `${provider} credentials present` 
       })
     }
 

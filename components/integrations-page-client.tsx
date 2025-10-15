@@ -209,7 +209,7 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
     </div>
   )
 
-  const testConnection = async (provider: "numverify" | "hiya" | "vonage" | "openai") => {
+  const testConnection = async (provider: "numverify" | "hiya" | "vonage" | "openai" | "whatsapp" | "email" | "sms" | "n8n") => {
     setLoading(provider)
     try {
       const res = await fetch("/api/integrations/test", {
