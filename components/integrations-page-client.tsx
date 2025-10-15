@@ -143,6 +143,7 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
           payload.credentials = {
             webhook_url: values.api_key
           }
+          // Don't set api_key for N8N to avoid NOT NULL constraint
         } else {
           if (values.api_key) payload.api_key = values.api_key
           if (values.api_secret) payload.api_secret = values.api_secret
@@ -157,6 +158,9 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
           insertData.credentials = {
             webhook_url: values.api_key
           }
+          // Set empty api_key to satisfy NOT NULL constraint
+          insertData.api_key = ""
+          insertData.api_secret = null
         } else {
           insertData.api_key = values.api_key
           insertData.api_secret = values.api_secret || null
