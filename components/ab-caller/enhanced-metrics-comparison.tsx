@@ -303,16 +303,16 @@ export function EnhancedMetricsComparison({ metrics, testName }: EnhancedMetrics
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <MetricCard
             title="Leads Contacted"
-            value={data.group_b.leads_contacted}
-            improvement={calculateImprovement(data.group_a.leads_contacted, data.group_b.leads_contacted)}
+            value={data.group_b?.leads_contacted || 0}
+            improvement={calculateImprovement(data.group_a?.leads_contacted || 0, data.group_b?.leads_contacted || 0)}
             icon={Users}
             description="Total number of unique leads that were successfully contacted."
             dataSource="Lead contact tracking and communication logs"
           />
           <MetricCard
             title="Quality Score"
-            value={data.group_b.quality_score}
-            improvement={calculateImprovement(data.group_a.quality_score, data.group_b.quality_score)}
+            value={data.group_b?.quality_score || 0}
+            improvement={calculateImprovement(data.group_a?.quality_score || 0, data.group_b?.quality_score || 0)}
             icon={Brain}
             description="Overall quality score based on lead engagement and response patterns."
             dataSource="Lead quality assessment algorithms"
@@ -468,16 +468,16 @@ export function EnhancedMetricsComparison({ metrics, testName }: EnhancedMetrics
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <MetricCard
             title="Spam Score"
-            value={data.group_b.spam_score}
-            improvement={calculateImprovement(data.group_a.spam_score, data.group_b.spam_score)}
+            value={data.group_b?.spam_score || 0}
+            improvement={calculateImprovement(data.group_a?.spam_score || 0, data.group_b?.spam_score || 0)}
             icon={Shield}
             description="Spam risk score based on phone number reputation and validation."
             dataSource="Internal spam checker and phone reputation APIs"
           />
           <MetricCard
             title="Quality Score"
-            value={data.group_b.quality_score}
-            improvement={calculateImprovement(data.group_a.quality_score, data.group_b.quality_score)}
+            value={data.group_b?.quality_score || 0}
+            improvement={calculateImprovement(data.group_a?.quality_score || 0, data.group_b?.quality_score || 0)}
             icon={Brain}
             description="Lead quality assessment based on engagement and response patterns."
             dataSource="Lead quality assessment algorithms"

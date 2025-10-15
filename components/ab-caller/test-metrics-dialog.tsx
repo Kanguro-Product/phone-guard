@@ -239,11 +239,11 @@ export function TestMetricsDialog({ open, onOpenChange, test }: TestMetricsDialo
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <div className="text-2xl font-bold">{metrics.group_a.total_calls}</div>
+                        <div className="text-2xl font-bold">{metrics.group_a?.total_calls || 0}</div>
                         <div className="text-sm text-muted-foreground">Total Calls</div>
                       </div>
                       <div>
-                        <div className="text-2xl font-bold">{metrics.group_a.answered_calls}</div>
+                        <div className="text-2xl font-bold">{metrics.group_a?.answered_calls || 0}</div>
                         <div className="text-sm text-muted-foreground">Answered</div>
                       </div>
                       <div>
@@ -266,15 +266,15 @@ export function TestMetricsDialog({ open, onOpenChange, test }: TestMetricsDialo
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <div className="text-2xl font-bold">{metrics.group_b.total_calls}</div>
+                        <div className="text-2xl font-bold">{metrics.group_b?.total_calls || 0}</div>
                         <div className="text-sm text-muted-foreground">Total Calls</div>
                       </div>
                       <div>
-                        <div className="text-2xl font-bold">{metrics.group_b.answered_calls}</div>
+                        <div className="text-2xl font-bold">{metrics.group_b?.answered_calls || 0}</div>
                         <div className="text-sm text-muted-foreground">Answered</div>
                       </div>
                       <div>
-                        <div className="text-2xl font-bold">{metrics.group_b.answer_rate.toFixed(1)}</div>
+                        <div className="text-2xl font-bold">{(metrics.group_b?.answer_rate || 0).toFixed(1)}</div>
                         <div className="text-sm text-muted-foreground">Answer Rate</div>
                       </div>
                       <div>

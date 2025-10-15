@@ -1,0 +1,185 @@
+{
+  "name": "A/B Caller Tool - Vonage Integration",
+  "description": "N8N workflow for A/B testing with Vonage Voice API using derivationId",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "A/B Test Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ab-test-call",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "validate-request",
+      "name": "Validate Request",
+      "type": "n8n-nodes-base.function",
+      "position": [460, 300],
+      "parameters": {
+        "functionCode": "// Validate A/B test call request\nconst requiredFields = ['testId', 'leadId', 'destinationNumber', 'group', 'derivationId', 'originNumber'];\n\nfor (const field of requiredFields) {\n  if (!$input.first().json[field]) {\n    throw new Error(`Missing required field: ${field}`);\n  }\n}\n\n// Validate group\nif (!['A', 'B'].includes($input.first().json.group)) {\n  throw new Error('Group must be A or B');\n}\n\n// Validate phone number format\nconst phoneRegex = /^\\+?[1-9]\\d{1,14}$/;\nif (!phoneRegex.test($input.first().json.destinationNumber)) {\n  throw new Error('Invalid destination phone number format');\n}\n\nreturn $input.first().json;"
+      }
+    },
+    {
+      "id": "get-test-config",
+      "name": "Get Test Configuration",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [680, 300],
+      "parameters": {
+        "url": "https://your-domain.com/api/ab-tests/{{ $json.testId }}",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer {{ $json.apiKey }}",
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "id": "build-vonage-payload",
+      "name": "Build Vonage Payload",
+      "type": "n8n-nodes-base.function",
+      "position": [900, 300],
+      "parameters": {
+        "functionCode": "// Build Vonage call payload with derivationId\nconst request = $input.first().json;\nconst testConfig = $('Get Test Configuration').first().json;\n\nconst sipUri = `sip:${request.derivationId}@kanguro-derivations.sip-eu.vonage.com`;\nconst eventUrl = `https://api.test.kanguro.com/api/v1/callBot/callback/${request.derivationId}?api-key=${request.apiKey}`;\n\nconst vonagePayload = {\n  to: [{\n    type: 'phone',\n    number: request.destinationNumber\n  }],\n  from: {\n    type: 'phone',\n    number: request.originNumber\n  },\n  ncco: [{\n    action: 'connect',\n    endpoint: [{\n      type: 'sip',\n      uri: sipUri\n    }],\n    eventUrl: [eventUrl]\n  }]\n};\n\nreturn {\n  json: {\n    ...request,\n    vonagePayload,\n    testConfig\n  }\n};"
+      }
+    },
+    {
+      "id": "call-vonage-api",
+      "name": "Call Vonage API",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1120, 300],
+      "parameters": {
+        "url": "https://api.nexmo.com/v1/calls",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{ $json.apiKey }}"
+        },
+        "body": "={{ JSON.stringify($json.vonagePayload) }}"
+      }
+    },
+    {
+      "id": "log-call-attempt",
+      "name": "Log Call Attempt",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1340, 300],
+      "parameters": {
+        "url": "https://your-domain.com/api/ab-caller/make-call",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{ $json.apiKey }}",
+          "Content-Type": "application/json"
+        },
+        "body": "={{ JSON.stringify({\n  testId: $json.testId,\n  leadId: $json.leadId,\n  destinationNumber: $json.destinationNumber,\n  group: $json.group,\n  derivationId: $json.derivationId,\n  originNumber: $json.originNumber,\n  callId: $json.uuid\n}) }}"
+      }
+    },
+    {
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1560, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({\n  success: true,\n  callId: $json.uuid,\n  message: 'A/B call initiated successfully',\n  testId: $json.testId,\n  group: $json.group\n}) }}"
+      }
+    },
+    {
+      "id": "error-response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1560, 400],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({\n  success: false,\n  error: $json.error || 'Unknown error occurred'\n}) }}"
+      }
+    }
+  ],
+  "connections": {
+    "A/B Test Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Request": {
+      "main": [
+        [
+          {
+            "node": "Get Test Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Test Configuration": {
+      "main": [
+        [
+          {
+            "node": "Build Vonage Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Vonage Payload": {
+      "main": [
+        [
+          {
+            "node": "Call Vonage API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Vonage API": {
+      "main": [
+        [
+          {
+            "node": "Log Call Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Call Attempt": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "id": "ab-caller",
+      "name": "A/B Caller Tool"
+    },
+    {
+      "id": "vonage",
+      "name": "Vonage Voice"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-20T10:00:00.000Z",
+  "versionId": "1"
+}

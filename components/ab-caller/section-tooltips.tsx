@@ -94,6 +94,17 @@ export function SectionTooltip({ section, children, className = "" }: SectionToo
         "Reputation monitoring"
       ]
     },
+    vonage: {
+      title: "Vonage Voice Configuration",
+      description: "Configure derivation IDs and calling strategies for A/B testing with Vonage Voice API integration.",
+      dataSource: "Vonage Voice API, derivation IDs, and call configuration",
+      features: [
+        "Derivation ID management",
+        "Call strategy configuration",
+        "Webhook setup",
+        "Test call functionality"
+      ]
+    },
     reporting: {
       title: "Reporting System",
       description: "Comprehensive reporting and export capabilities with customizable reports, data visualization, and export formats.",

@@ -21,6 +21,7 @@ import { EnhancedMetricsComparison } from "./enhanced-metrics-comparison"
 import { SectionTooltip, HelpButton, InfoCircle } from "./section-tooltips"
 import { SectionNavigation } from "./section-navigation"
 import { ABCallerProvider } from "./ab-caller-context"
+import { VonageConfiguration } from "./vonage-configuration"
 import { useToast } from "@/hooks/use-toast"
 
 interface Test {
@@ -444,12 +445,13 @@ export function ABCallerPageClientRevolutionary({ initialTests, user }: ABCaller
 
         {/* Main Navigation Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-9">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="sampling">Sampling</TabsTrigger>
             <TabsTrigger value="communication">Communication</TabsTrigger>
             <TabsTrigger value="spam">Spam Protection</TabsTrigger>
+            <TabsTrigger value="vonage">Vonage Config</TabsTrigger>
             <TabsTrigger value="scientific">Scientific</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="reporting">Reporting</TabsTrigger>
@@ -642,6 +644,33 @@ export function ABCallerPageClientRevolutionary({ initialTests, user }: ABCaller
                   console.log('Risk assessment:', risks)
                 }}
               />
+            </SectionTooltip>
+          </TabsContent>
+
+          <TabsContent value="vonage" className="space-y-6">
+            <SectionTooltip section="vonage">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Phone className="h-5 w-5" />
+                      <CardTitle>Vonage Voice Configuration</CardTitle>
+                    </div>
+                    <InfoCircle section="vonage" size="md" />
+                  </div>
+                  <CardDescription>
+                    Configure derivation IDs and calling strategies for A/B testing
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <VonageConfiguration 
+                    testId={selectedTest?.test_id}
+                    onConfigUpdate={(config) => {
+                      console.log('Vonage configuration updated:', config)
+                    }}
+                  />
+                </CardContent>
+              </Card>
             </SectionTooltip>
           </TabsContent>
 

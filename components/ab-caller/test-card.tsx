@@ -115,8 +115,15 @@ export function TestCard({ test, onAction, onViewMetrics, onViewDetails }: TestC
     if (!test.current_metrics) return null
     
     const { group_a, group_b } = test.current_metrics
-    const totalCalls = group_a.total_calls + group_b.total_calls
-    const totalAnswered = group_a.answered_calls + group_b.answered_calls
+    
+    // Handle undefined or null values with safe defaults
+    const groupATotalCalls = group_a?.total_calls || 0
+    const groupBTotalCalls = group_b?.total_calls || 0
+    const groupAAnsweredCalls = group_a?.answered_calls || 0
+    const groupBAnsweredCalls = group_b?.answered_calls || 0
+    
+    const totalCalls = groupATotalCalls + groupBTotalCalls
+    const totalAnswered = groupAAnsweredCalls + groupBAnsweredCalls
     const overallAnswerRate = totalCalls > 0 ? Math.round((totalAnswered / totalCalls) * 100) : 0
     
     return {
