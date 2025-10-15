@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Get N8N webhook URL and API key from user integrations
+    // Get N8N webhook URL from user integrations
     const { data: integration, error: integrationError } = await supabase
       .from('integrations')
       .select('*')
@@ -47,11 +47,10 @@ export async function POST(request: NextRequest) {
     }
 
     const n8nWebhookUrl = integration.credentials?.webhook_url
-    const apiKey = integration.credentials?.api_key
 
-    if (!n8nWebhookUrl || !apiKey) {
+    if (!n8nWebhookUrl) {
       return NextResponse.json({ 
-        error: 'N8N webhook URL or API key not found' 
+        error: 'N8N webhook URL not found' 
       }, { status: 400 })
     }
 
@@ -66,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Make the A/B call using N8N webhook
-    const callerService = new SimpleVonageCallerService(n8nWebhookUrl, apiKey)
+    const callerService = new SimpleVonageCallerService(n8nWebhookUrl)
     const result = await callerService.makeABCall(callRequest)
 
     if (!result.success) {
@@ -126,16 +125,15 @@ export async function PUT(request: NextRequest) {
     }
 
     const n8nWebhookUrl = integration.credentials?.webhook_url
-    const apiKey = integration.credentials?.api_key
 
-    if (!n8nWebhookUrl || !apiKey) {
+    if (!n8nWebhookUrl) {
       return NextResponse.json({ 
-        error: 'N8N webhook URL or API key not found' 
+        error: 'N8N webhook URL not found' 
       }, { status: 400 })
     }
 
     // Make batch calls
-    const callerService = new SimpleVonageCallerService(n8nWebhookUrl, apiKey)
+    const callerService = new SimpleVonageCallerService(n8nWebhookUrl)
     const results = await callerService.makeBatchABCalls(body.requests)
 
     return NextResponse.json({

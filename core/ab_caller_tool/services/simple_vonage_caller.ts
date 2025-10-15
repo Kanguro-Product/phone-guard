@@ -29,42 +29,17 @@ export interface SimpleCallResponse {
 
 export class SimpleVonageCallerService {
   private n8nWebhookUrl: string
-  private apiKey: string
 
-  constructor(n8nWebhookUrl: string, apiKey: string) {
+  constructor(n8nWebhookUrl: string) {
     this.n8nWebhookUrl = n8nWebhookUrl
-    this.apiKey = apiKey
   }
 
   /**
-   * Hacer login inicial para autenticación
+   * Hacer login inicial para autenticación (simplificado)
    */
   async login(): Promise<{ success: boolean; error?: string }> {
-    try {
-      const response = await fetch(`${this.n8nWebhookUrl}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`
-        },
-        body: JSON.stringify({
-          action: 'login',
-          timestamp: new Date().toISOString()
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error(`Login failed: ${response.statusText}`)
-      }
-
-      const result = await response.json()
-      return { success: result.success || true }
-    } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Login failed' 
-      }
-    }
+    // Para N8N webhooks simples, no necesitamos login
+    return { success: true }
   }
 
   /**
@@ -96,8 +71,7 @@ export class SimpleVonageCallerService {
       const response = await fetch(this.n8nWebhookUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(n8nPayload)
       })

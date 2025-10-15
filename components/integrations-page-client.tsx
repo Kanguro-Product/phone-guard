@@ -71,10 +71,9 @@ const PROVIDER_HINT: Record<string, { key: string; secret?: string; doc?: string
   },
   n8n: {
     key: "Webhook URL",
-    secret: "API Key",
     doc: "https://n8n.io/",
     help:
-      "Configure your N8N webhook URL and API key for A/B Caller Tool integration. This enables automated call workflows.",
+      "Configure your N8N webhook URL for A/B Caller Tool integration. This enables automated call workflows.",
   },
 }
 
@@ -119,7 +118,7 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
   const [whatsapp, setWhatsapp] = useState<{ api_key: string; api_secret: string }>({ api_key: "", api_secret: "" })
   const [email, setEmail] = useState<{ api_key: string; api_secret: string }>({ api_key: "", api_secret: "" })
   const [sms, setSms] = useState<{ api_key: string; api_secret: string }>({ api_key: "", api_secret: "" })
-  const [n8n, setN8n] = useState<{ api_key: string; api_secret: string }>({ api_key: "", api_secret: "" })
+  const [n8n, setN8n] = useState<{ api_key: string }>({ api_key: "" })
 
   const masked = useMemo(() => (value: string) => {
     if (!value) return ""
@@ -142,8 +141,7 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
         // For N8N, use credentials structure
         if (provider === "n8n") {
           payload.credentials = {
-            webhook_url: values.api_key,
-            api_key: values.api_secret || null
+            webhook_url: values.api_key
           }
         } else {
           if (values.api_key) payload.api_key = values.api_key
@@ -157,8 +155,7 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
         // For N8N, use credentials structure
         if (provider === "n8n") {
           insertData.credentials = {
-            webhook_url: values.api_key,
-            api_key: values.api_secret || null
+            webhook_url: values.api_key
           }
         } else {
           insertData.api_key = values.api_key
@@ -583,19 +580,9 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
                     <Input
                       id="n8n_key"
                       type="text"
-                      placeholder="https://n8n.test.kanguro.com/webhook/ab-test-call"
+                      placeholder="https://n8n.test.kanguro.com/workflow/SaU99fUufXsmTQ1n"
                       value={n8n.api_key}
                       onChange={(e) => setN8n((v) => ({ ...v, api_key: e.target.value }))}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="n8n_secret">{PROVIDER_HINT.n8n.secret}</Label>
-                    <Input
-                      id="n8n_secret"
-                      type="password"
-                      placeholder="paste your N8N API key"
-                      value={n8n.api_secret}
-                      onChange={(e) => setN8n((v) => ({ ...v, api_secret: e.target.value }))}
                     />
                   </div>
                   {PROVIDER_HINT.n8n.help && (

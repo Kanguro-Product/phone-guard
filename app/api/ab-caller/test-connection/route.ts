@@ -32,17 +32,16 @@ export async function POST(request: NextRequest) {
     }
 
     const n8nWebhookUrl = integration.credentials?.webhook_url
-    const apiKey = integration.credentials?.api_key
 
-    if (!n8nWebhookUrl || !apiKey) {
+    if (!n8nWebhookUrl) {
       return NextResponse.json({ 
-        error: 'N8N webhook URL or API key not found',
-        status: 'n8n_credentials_missing'
+        error: 'N8N webhook URL not found',
+        status: 'n8n_webhook_missing'
       }, { status: 400 })
     }
 
     // Test connection based on type
-    const callerService = new SimpleVonageCallerService(n8nWebhookUrl, apiKey)
+    const callerService = new SimpleVonageCallerService(n8nWebhookUrl)
     
     let testResult = {
       success: false,
