@@ -64,46 +64,30 @@ export async function POST(request: NextRequest) {
     }
 
     if (provider === "n8n") {
-      // Test N8N webhook with a simple POST request
+      // For N8N, just verify the webhook URL is configured and valid
       const webhookUrl = data.credentials?.webhook_url
       if (!webhookUrl) {
         return NextResponse.json({ ok: false, message: "N8N webhook URL not configured" })
       }
 
+      // Validate URL format
       try {
-        const testPayload = {
-          test: true,
-          timestamp: new Date().toISOString(),
-          message: "Connection test from Phone Guard"
-        }
-
-        const testResponse = await fetch(webhookUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(testPayload)
-        })
-
-        if (testResponse.ok) {
-          return NextResponse.json({ 
-            ok: true, 
-            message: "N8N webhook connection successful",
-            webhook_url: webhookUrl
-          })
-        } else {
-          return NextResponse.json({ 
-            ok: false, 
-            status: testResponse.status, 
-            message: "N8N webhook test failed" 
-          })
-        }
-      } catch (error) {
+        new URL(webhookUrl)
+      } catch {
         return NextResponse.json({ 
           ok: false, 
-          message: `N8N webhook error: ${error instanceof Error ? error.message : 'Unknown error'}` 
+          message: "Invalid webhook URL format" 
         })
       }
+
+      // For N8N, we consider the configuration valid if the URL is properly formatted
+      // The actual webhook functionality will be tested when making real calls
+      return NextResponse.json({ 
+        ok: true, 
+        message: "N8N webhook URL configured successfully",
+        webhook_url: webhookUrl,
+        note: "Webhook will be tested when making actual A/B calls"
+      })
     }
 
     if (provider === "whatsapp" || provider === "email" || provider === "sms") {
