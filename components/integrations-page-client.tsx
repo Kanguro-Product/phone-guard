@@ -69,6 +69,13 @@ const PROVIDER_HINT: Record<string, { key: string; secret?: string; doc?: string
     help:
       "Configure SMS provider (Twilio, Vonage SMS, etc.) for A/B Caller Tool SMS nudges.",
   },
+  n8n: {
+    key: "Webhook URL",
+    secret: "API Key",
+    doc: "https://n8n.io/",
+    help:
+      "Configure your N8N webhook URL and API key for A/B Caller Tool integration. This enables automated call workflows.",
+  },
 }
 
 export function IntegrationsPageClient({ user, initialIntegrations }: IntegrationsPageClientProps) {
@@ -87,6 +94,9 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
   const [openaiId, setOpenaiId] = useState<string | undefined>(
     initialIntegrations.find((x) => x.provider.toLowerCase() === "openai")?.id,
   )
+  const [n8nId, setN8nId] = useState<string | undefined>(
+    initialIntegrations.find((x) => x.provider.toLowerCase() === "n8n")?.id,
+  )
   const [vonageEnabled, setVonageEnabled] = useState(
     initialIntegrations.find((x) => x.provider.toLowerCase() === "vonage")?.enabled ?? true,
   )
@@ -99,6 +109,9 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
   const [openaiEnabled, setOpenaiEnabled] = useState(
     initialIntegrations.find((x) => x.provider.toLowerCase() === "openai")?.enabled ?? true,
   )
+  const [n8nEnabled, setN8nEnabled] = useState(
+    initialIntegrations.find((x) => x.provider.toLowerCase() === "n8n")?.enabled ?? true,
+  )
   const [vonage, setVonage] = useState<{ api_key: string; api_secret: string }>({ api_key: "", api_secret: "" })
   const [hiya, setHiya] = useState<{ api_key: string; api_secret: string }>({ api_key: "", api_secret: "" })
   const [numverify, setNumverify] = useState<{ api_key: string }>({ api_key: "" })
@@ -106,6 +119,7 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
   const [whatsapp, setWhatsapp] = useState<{ api_key: string; api_secret: string }>({ api_key: "", api_secret: "" })
   const [email, setEmail] = useState<{ api_key: string; api_secret: string }>({ api_key: "", api_secret: "" })
   const [sms, setSms] = useState<{ api_key: string; api_secret: string }>({ api_key: "", api_secret: "" })
+  const [n8n, setN8n] = useState<{ api_key: string; api_secret: string }>({ api_key: "", api_secret: "" })
 
   const masked = useMemo(() => (value: string) => {
     if (!value) return ""
@@ -114,25 +128,46 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
   }, [])
 
   const upsertProvider = async (
-    provider: "vonage" | "hiya" | "numverify" | "openai",
+    provider: "vonage" | "hiya" | "numverify" | "openai" | "whatsapp" | "email" | "sms" | "n8n",
     values: { api_key: string; api_secret?: string },
     enabled: boolean,
   ) => {
     if (!provider) return
-    if (!values.api_key && !((provider === "vonage" && vonageId) || (provider === "hiya" && hiyaId) || (provider === "openai" && openaiId))) return
-    const currentId = provider === "vonage" ? vonageId : provider === "hiya" ? hiyaId : provider === "openai" ? openaiId : numverifyId
+    if (!values.api_key && !((provider === "vonage" && vonageId) || (provider === "hiya" && hiyaId) || (provider === "openai" && openaiId) || (provider === "n8n" && n8nId))) return
+    const currentId = provider === "vonage" ? vonageId : provider === "hiya" ? hiyaId : provider === "openai" ? openaiId : provider === "n8n" ? n8nId : numverifyId
     setLoading(provider)
     try {
       if (currentId) {
         const payload: any = { enabled }
-        if (values.api_key) payload.api_key = values.api_key
-        if (values.api_secret) payload.api_secret = values.api_secret
+        // For N8N, use credentials structure
+        if (provider === "n8n") {
+          payload.credentials = {
+            webhook_url: values.api_key,
+            api_key: values.api_secret || null
+          }
+        } else {
+          if (values.api_key) payload.api_key = values.api_key
+          if (values.api_secret) payload.api_secret = values.api_secret
+        }
         const { error } = await supabase.from("integrations").update(payload).eq("id", currentId)
         if (error) throw error
       } else {
+        let insertData: any = { user_id: user.id, provider, enabled }
+        
+        // For N8N, use credentials structure
+        if (provider === "n8n") {
+          insertData.credentials = {
+            webhook_url: values.api_key,
+            api_key: values.api_secret || null
+          }
+        } else {
+          insertData.api_key = values.api_key
+          insertData.api_secret = values.api_secret || null
+        }
+        
         const { data, error } = await supabase
           .from("integrations")
-          .insert({ user_id: user.id, provider, api_key: values.api_key, api_secret: values.api_secret || null, enabled })
+          .insert(insertData)
           .select("id")
           .single()
         if (error) throw error
@@ -140,6 +175,7 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
         if (provider === "hiya") setHiyaId(data?.id)
         if (provider === "numverify") setNumverifyId(data?.id)
         if (provider === "openai") setOpenaiId(data?.id)
+        if (provider === "n8n") setN8nId(data?.id)
       }
       alert("Saved successfully")
     } catch (e) {
@@ -526,6 +562,50 @@ export function IntegrationsPageClient({ user, initialIntegrations }: Integratio
                       Test connection
                     </Button>
                     <Button onClick={() => upsertProvider("sms", sms, true)} disabled={loading === "sms"}>
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-foreground flex items-center justify-between">
+                  <span>N8N Workflow</span>
+                  <Badge variant="default">A/B Tool Required</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="n8n_key">{PROVIDER_HINT.n8n.key}</Label>
+                    <Input
+                      id="n8n_key"
+                      type="text"
+                      placeholder="https://n8n.test.kanguro.com/webhook/ab-test-call"
+                      value={n8n.api_key}
+                      onChange={(e) => setN8n((v) => ({ ...v, api_key: e.target.value }))}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="n8n_secret">{PROVIDER_HINT.n8n.secret}</Label>
+                    <Input
+                      id="n8n_secret"
+                      type="password"
+                      placeholder="paste your N8N API key"
+                      value={n8n.api_secret}
+                      onChange={(e) => setN8n((v) => ({ ...v, api_secret: e.target.value }))}
+                    />
+                  </div>
+                  {PROVIDER_HINT.n8n.help && (
+                    <div className="text-[11px] text-muted-foreground">{PROVIDER_HINT.n8n.help} Docs: {PROVIDER_HINT.n8n.doc}</div>
+                  )}
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => testConnection("n8n")} disabled={loading === "n8n"}>
+                      Test connection
+                    </Button>
+                    <Button onClick={() => upsertProvider("n8n", n8n, true)} disabled={loading === "n8n"}>
                       Save
                     </Button>
                   </div>
